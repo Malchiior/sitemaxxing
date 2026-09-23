@@ -49,7 +49,7 @@ const observe = (chunk: Buffer) => {
   if (!passed && log.includes("plow channel registered") && log.includes("[gateway] ready") && pluginLoaded) {
     passed = true;
     clearTimeout(timeout);
-    console.log("RO_PROBE_OK");
+    console.log("RO_PROBE_OK\nPLOW_PROBE_OK");
     process.kill(process.pid, "SIGTERM");
   }
 };
