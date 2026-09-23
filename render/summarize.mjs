@@ -112,13 +112,13 @@ export function allIssues(run) {
 export function resultMessage(run) {
   const host = new URL(run.audit.finalUrl ?? run.url).hostname.replace(/^www\./, "");
   const g = groups(run.audit.screens);
-  const parts = [["Phones", g.phones], ["tablets", g.tablets], ["computers", g.computers]].filter(([, r]) => r);
+  const parts = [["phones", g.phones], ["tablets", g.tablets], ["computers", g.computers]].filter(([, r]) => r);
   const every = allIssues(run);
   const big = every.filter(i => i.severity !== "low").length;
   const found = big ? `${big} thing${big === 1 ? "" : "s"} to fix` : every.length ? "nothing broken" : "nothing to fix";
   return [
     `${host} · ${found}`,
-    parts.map(([name, r]) => `${name} ${r.text}`).join(", "),
+    `Score: ${parts.map(([name, r]) => `${name} ${r.text}`).join(", ")}`,
     ...(pagesInvite(run.pages) ? [pagesInvite(run.pages)] : []),
   ].join("\n");
 }
@@ -208,13 +208,13 @@ export function recheckMessage(run, previous) {
   const url = new URL(run.audit.finalUrl ?? run.url);
   const page = `${url.hostname.replace(/^www\./, "")}${url.pathname.replace(/\/+$/, "")}`;
   const d = diffRuns(previous, run);
-  const both = ["Phones", "tablets", "computers"].filter(g => d.scores.before[g.toLowerCase()] && d.scores.after[g.toLowerCase()]).map(g => [g, d.scores.before[g.toLowerCase()], d.scores.after[g.toLowerCase()]]);
+  const both = ["phones", "tablets", "computers"].filter(g => d.scores.before[g.toLowerCase()] && d.scores.after[g.toLowerCase()]).map(g => [g, d.scores.before[g.toLowerCase()], d.scores.after[g.toLowerCase()]]);
   const scores = both.map(([g, b, a]) => b.text === a.text ? `${g} ${a.text}` : `${g} ${b.text} → ${a.text}`).join(", ");
   const since = previous.audit.finishedAt ? ` · since ${shortDate(previous.audit.finishedAt)}` : "";
   const left = d.still.length + d.added.length;
   return [
     `${page} again${since} · fixed ${d.fixed.length}, still there ${d.still.length}, new ${d.added.length}${left ? "" : " · nothing left to fix"}`,
-    scores,
+    `Score: ${scores}`,
     ...(pagesInvite(run.pages) ? [pagesInvite(run.pages)] : []),
   ].join("\n");
 }

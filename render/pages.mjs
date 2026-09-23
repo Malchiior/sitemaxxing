@@ -89,7 +89,7 @@ export function pagesMessage(pr) {
   const big = mergeIssues(checked).filter(i => i.severity !== "low").length;
   return [
     `${pr.host} · ${checked.length} more page${checked.length === 1 ? "" : "s"} · ${big ? `${big} thing${big === 1 ? "" : "s"} to fix` : "nothing broken"}`,
-    checked.map(p => `${p.label} ${pageScore(p.audit)}`).join(", "),
+    `Score: ${checked.map(p => `${p.label} ${pageScore(p.audit)}`).join(", ")}`,
     ...skipped.map(p => `Couldn't check ${p.label}: ${p.skipped}`),
     `The PDF covers all ${total} pages`,
   ].join("\n");
