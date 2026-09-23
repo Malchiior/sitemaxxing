@@ -32,6 +32,12 @@ export async function ownerChatUid(): Promise<string> {
   return owned[0].uid;
 }
 
+/** Send one line of text to a conversation. */
+export async function sendText(chat: string, text: string): Promise<string> {
+  const sent = await request<{ uid: string }>(`/chats/${chat}/messages`, { body: text });
+  return sent.uid;
+}
+
 /** Upload a file and send it as a message with optional text. */
 export async function sendFile(chat: string, path: string, contentType: string, text = ""): Promise<string> {
   const data = readFileSync(path);

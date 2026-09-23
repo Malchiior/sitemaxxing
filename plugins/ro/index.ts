@@ -15,9 +15,9 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { checkableUrl, UrlRefused } from "./url-guard.ts";
-import { ownerChatUid, sendFile } from "./plow-api.ts";
+import { ownerChatUid, sendFile, sendText } from "./plow-api.ts";
 import { previousRun } from "./runs.ts";
-import { COMMANDS, fixReply } from "./replies.ts";
+import { COMMANDS, fixReply, greeting } from "./replies.ts";
 
 const WORKSPACE = process.env.RO_WORKSPACE ?? "/var/lib/plow/workspace";
 const RUNS = join(WORKSPACE, "ro", "runs");
@@ -85,10 +85,26 @@ function runScript(script: string, args: string[], timeout: number, explain: (st
   });
 }
 
+/** Send the "On it" line to the conversation that asked, by code. True when it went out. */
+async function ackNow(ctx: Record<string, any> | undefined, logger: any): Promise<boolean> {
+  try {
+    const keys = Object.keys(ctx ?? {});
+    logger?.info?.(`ro: tool ctx keys=${keys.join(",")} conversation=${JSON.stringify(ctx?.conversation ?? null)}`);
+    let chat: string | null = ctx?.conversation?.id ?? ctx?.chatId ?? ctx?.reply?.to ?? null;
+    if (!chat && ctx?.requester?.senderIsOwner !== false) chat = await ownerChatUid();
+    if (!chat) return false;
+    await sendText(chat, "On it. About a minute.");
+    return true;
+  } catch (error) {
+    logger?.warn?.(`ro: ack not sent: ${error instanceof Error ? error.message : String(error)}`);
+    return false;
+  }
+}
+
 /** The reply to send, between the lines, then the measured details for follow-up questions. */
-function replyText(summary: Record<string, any>): string {
+function replyText(summary: Record<string, any>, acked = true): string {
   return [
-    "Your reply is below, between the lines. Send it exactly as written: the one line of text, then the MEDIA line (the PDF). Nothing else.",
+    `Your reply is below, between the lines. Send it exactly as written: the one line of text, then the MEDIA line (the PDF). Nothing else.${acked ? ' (The "On it" line was already sent.)' : ""}`,
     "-----",
     summary.message,
     `MEDIA:${summary.report}`,
@@ -110,13 +126,16 @@ export default definePluginEntry({
         type: "object", required: ["url"], additionalProperties: false,
         properties: { url: { type: "string", description: "The website address as the person sent it, e.g. sbeoc.com or https://sbeoc.com" } },
       },
-      async execute(_id: string, args: { url: string }) {
+      async execute(_id: string, args: { url: string }, ctx?: Record<string, any>) {
         let url: URL;
         try { url = await checkableUrl(args.url); }
         catch (error) { return fail(error instanceof UrlRefused ? error.message : "Couldn't read that address."); }
         const host = url.hostname.replace(/^www\./, "");
         const refused = refusal(host);
         if (refused) return refused;
+        // "On it. About a minute." goes out from here, by code, the moment the
+        // check starts: the same words every time, and never forgotten.
+        const acked = await ackNow(ctx, api.logger);
         // Checked before? Then the results say what changed since (render/check.mjs).
         const previous = previousRun(RUNS, url.href);
         const dir = join(RUNS, `${stamp()}-${host}`);
@@ -126,7 +145,7 @@ export default definePluginEntry({
         try {
           const summary = JSON.parse(await runScript(CHECK_SCRIPT, [url.href, dir, ...(previous ? [previous] : [])], CHECK_TIMEOUT_MS, (stderr, timedOut) => failureText(host, stderr, timedOut)));
           writeFileSync(LATEST, dir);
-          return ok(replyText(summary), { site: summary.site, dir, previous });
+          return ok(replyText(summary, acked), { site: summary.site, dir, previous });
         } catch (error) {
           return fail(error instanceof Error ? error.message : `Couldn't finish checking ${host}. Send it again in a minute.`);
         } finally {
@@ -188,6 +207,13 @@ export default definePluginEntry({
           "-----",
         ].join("\n"), { file });
       },
+    });
+
+    api.registerTool({
+      name: "ro_greeting", label: "The first-contact greeting",
+      description: "The greeting for someone's first message, written ahead of time. Call it on first contact and send what it returns word for word.",
+      parameters: { type: "object", additionalProperties: false, properties: { name: { type: "string", description: "The person's first name from the conversation facts, if known" } } },
+      async execute(_id: string, args: { name?: string }) { return ok(greeting(args?.name)); },
     });
 
     api.registerTool({

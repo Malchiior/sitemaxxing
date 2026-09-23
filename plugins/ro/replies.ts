@@ -8,6 +8,12 @@ export function fixReply(host: string, file: string, pages = 0): string {
   ].join("\n");
 }
 
+/** The first-contact greeting, with the person's first name when Plow gave one. */
+export function greeting(name?: string): string {
+  const who = (name ?? "").trim().split(/\s+/)[0];
+  return `Hi${who ? ` ${who}` : ""}. I am your website maxxing agent. Text me a website address whenever you want a fit check, or text "commands" to see a list of what I can do.`;
+}
+
 /** The "commands" text: an emoji per action, so a reply of just the emoji works too. */
 export const COMMANDS = [
   "What I can do. Reply with the word or just the emoji.",
