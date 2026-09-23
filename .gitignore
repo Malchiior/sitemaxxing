@@ -1,0 +1,7 @@
+# client screenshots and audit output from test runs
+.scratch/
+# secrets
+.env
+.env.*
+plow-credentials
+node_modules/
