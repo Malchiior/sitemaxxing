@@ -1,0 +1,13 @@
+# Third-party files fetched at build time, pinned by commit/version AND checksum.
+# A moving reference would put unreviewed code next to a live credential.
+
+# plow-pbc/agent-index-client (Apache-2.0) — the Agent Index usage reporter.
+client_sha=d1e6641bb8c72c0952c02cb9baf75f6145a3ed92
+client_sha256=718db0330f09b5dc72a6f3e53d47e7ea9f28ffd838dc8cb7afe6e3036ce09384
+
+# kenn-io/agentsview (MIT) — the usage index the reporter reads.
+# Checksums cross-checked against GitHub's release asset digests.
+agentsview_version=0.44.0
+agentsview_amd64_sha256=037ea7a46d52e06b20363b4aa7cd7f28e32f31d8215803d6e9a0c96bac5818e3
+agentsview_arm64_sha256=6f3c76ebe119826a2def1ae226c3573b214d396a3ed7c477ef282b1063345b87
+

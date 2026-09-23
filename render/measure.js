@@ -115,7 +115,11 @@ async ({ touch, dpr }) => {
   // 7. Images: broken, and far larger than this screen can show, counting the
   //    device's real pixel density (a phone at 3x needs 3x the pixels).
   const imgs = [...document.images].filter(shown);
-  const broken = imgs.filter(i => i.complete && i.naturalWidth === 0).map(i => i.getAttribute("src"));
+  const broken = imgs.filter(i => i.complete && i.naturalWidth === 0).map(i => ({ src: i.getAttribute("src"), alt: i.getAttribute("alt") || "" }));
+  // Every image that loads, shown or not: a broken image often has a working
+  // twin (same alt text) used at another screen size.
+  const working = [...document.images].filter(i => i.complete && i.naturalWidth > 0 && (i.getAttribute("alt") || "").trim())
+    .slice(0, 40).map(i => ({ src: i.currentSrc || i.src, alt: i.getAttribute("alt").trim() }));
   const oversized = imgs.filter(i => i.naturalWidth > 2 * i.getBoundingClientRect().width * dpr && i.naturalWidth > 800)
     .slice(0, 4).map(i => ({ src: (i.currentSrc || i.src).split("/").pop().slice(0, 60), natural: i.naturalWidth, shown: Math.round(i.getBoundingClientRect().width), needed: Math.round(i.getBoundingClientRect().width * dpr) }));
 
@@ -132,7 +136,13 @@ async ({ touch, dpr }) => {
   const nav = performance.getEntriesByType("navigation")[0];
   const bytes = resources.reduce((sum, r) => sum + (r.transferSize || r.encodedBodySize || 0), nav ? (nav.transferSize || 0) : 0);
 
+  // 9. Is this even the site? A bot check or a login wall instead of content.
+  const head = `${document.title} ${(body.innerText || "").slice(0, 2000)}`;
+  const gate = /just a moment|verify you are human|are you a robot|attention required|checking your browser|captcha/i.test(head) ? "bot-check"
+    : [...document.querySelectorAll('input[type="password"]')].some(shown) && chars < 600 ? "login" : null;
+
   return {
+    gate,
     viewport: { width: vw, height: vh },
     pageHeight: Math.round(doc.scrollHeight),
     viewportMeta: document.querySelector('meta[name="viewport"]')?.getAttribute("content") ?? null,
@@ -146,7 +156,7 @@ async ({ touch, dpr }) => {
     firstScreen,
     covering,
     clipped,
-    images: { total: imgs.length, broken, oversized },
+    images: { total: imgs.length, broken, working, oversized },
     speed: {
       lcpMs: lcp, loadMs: nav ? Math.round(nav.loadEventEnd) : null, kb: Math.round(bytes / 1024), requests: resources.length + 1,
       heaviest: [...resources].sort((a, b) => (b.transferSize || b.encodedBodySize || 0) - (a.transferSize || a.encodedBodySize || 0)).slice(0, 3)

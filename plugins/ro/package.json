@@ -1,0 +1,7 @@
+{
+  "name": "resolution-optimizer-tools",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "openclaw": { "extensions": ["./dist/index.js"] }
+}

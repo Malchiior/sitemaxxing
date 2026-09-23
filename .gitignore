@@ -5,3 +5,6 @@
 .env.*
 plow-credentials
 node_modules/
+plow-credentials
+__pycache__/
+*.pyc

@@ -1,0 +1,10 @@
+.git
+.env
+.env.*
+plow-credentials
+node_modules
+tests
+data
+dev
+.scratch
+__pycache__

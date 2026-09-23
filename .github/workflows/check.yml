@@ -1,0 +1,20 @@
+name: check
+on:
+  push:
+  pull_request:
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Unit tests (URL guard, fix prompt, usage bridge)
+        run: |
+          node --test tests/url-guard.test.ts tests/summarize.test.mjs
+          python3 -m unittest discover -s tests -p 'test_*.py'
+      - name: Build image (verifies every pinned checksum)
+        run: docker build -t resolution-optimizer:ci .
+      - name: Offline probe (Chromium renders 9 screens; gateway boots with the plugin)
+        run: docker run --rm --network none resolution-optimizer:ci /opt/plow/ro-probe | tee probe.log && grep -q RO_PROBE_OK probe.log
