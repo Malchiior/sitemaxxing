@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { mainPages, mergeIssues, pageKey, pagePath, pageScore, pagesFixPrompt, pagesMessage } from "../render/pages.mjs";
+import { mainPages, mergeIssues, pageKey, pagePath, pageScore, pagesFixPrompt, pagesIssueLines, pagesMessage } from "../render/pages.mjs";
 import { pagesOffer, resultMessage, fixSections } from "../render/summarize.mjs";
 import { seoIssues, SITE_WIDE } from "../render/seo.mjs";
 import { hostSize, pagesCardHtml } from "../render/card.mjs";
@@ -73,20 +73,16 @@ test("mergeIssues: one line per problem across pages, worst severity, screens jo
   assert.equal(merged[0].key, "sideways", "high before medium");
 });
 
-test("pagesMessage: scores per page, dots with the pages in brackets, skipped pages named, how to reply", () => {
+test("pagesMessage: one line with scores per page, skipped pages named, the PDF as the handoff", () => {
   const text = pagesMessage(run());
-  const lines = text.split("\n");
-  assert.equal(lines[0], "sbeoc.com, 3 more pages checked: /about 75–100, /projects 75–100, /contact 75–100.");
-  assert.equal(lines[1], "🔴 Page scrolls sideways on iPhone 15 (/projects)");
-  assert.equal(lines[2], "🟡 Buttons too small to tap on iPhone 15 and iPad portrait (/about, /projects)");
-  assert.equal(lines[3], "🟡 No Google description (/about)");
-  assert.equal(lines[4], "+1 smaller in the report.");
-  assert.equal(lines[5], "Couldn't check /careers: it didn't load.");
-  assert.equal(lines.at(-1), "Report card and full PDF below, covering 4 pages including the homepage. Reply fix for your coding agent's fix list.");
-  assert.doesNotMatch(text, /https?:\/\//);
-  const deeper = run();
-  deeper.pages[0].label = "/pricing";
-  assert.match(pagesMessage(deeper), /covering 4 pages including \/pricing\./);
+  assert.equal(text, "sbeoc.com, 3 more pages checked (/about 75–100, /projects 75–100, /contact 75–100): 3 things to fix. Couldn't check /careers: it didn't load. The PDF covers all 4 pages; send it to your coding agent as is. Text the URL again after you deploy.");
+  assert.doesNotMatch(text, /https?:\/\/|\n/);
+  assert.deepEqual(pagesIssueLines(run()), [
+    "🔴 Page scrolls sideways on iPhone 15 (/projects)",
+    "🟡 Buttons too small to tap on iPhone 15 and iPad portrait (/about, /projects)",
+    "🟡 No Google description (/about)",
+    "⚪ Page language not set (/projects)",
+  ]);
 });
 
 test("a page that didn't load on a sub-page is called a page, not the homepage", async () => {
@@ -117,8 +113,8 @@ test("fixSections alone says when a page is clean", () => {
 
 test("the result text offers the other pages by name, or by count when the list is long", () => {
   const withIds = { url: "https://sbeoc.com", audit: auditFor({}), seo: { issues: [] } };
-  assert.match(resultMessage({ ...withIds, pages: [{ path: "/about" }, { path: "/contact" }] }), /Reply fix for your coding agent's fix list, or pages to check \/about and \/contact too\.$/);
-  assert.match(resultMessage(withIds), /fix list\.$/);
+  assert.match(resultMessage({ ...withIds, pages: [{ path: "/about" }, { path: "/contact" }] }), /Reply pages to check \/about and \/contact too, or text the URL again after you deploy\.$/);
+  assert.match(resultMessage(withIds), /fix list\. Text the URL again after you deploy\.$/);
   assert.equal(pagesOffer([{ path: "/about" }]), ", or pages to check /about too");
   assert.equal(pagesOffer(mainPages([link("https://sbeoc.com/"), link("https://sbeoc.com/about")], "https://sbeoc.com/pricing")), ", or pages to check Home and /about too");
   assert.equal(pagesOffer([{ path: "/a" }, { path: "/b" }, { path: "/c" }]), ", or pages to check /a, /b and /c too");

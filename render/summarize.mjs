@@ -116,16 +116,14 @@ export function resultMessage(run) {
   const same = parts.every(([, r]) => r.text === parts[0][1].text);
   const scores = same ? `${parts[0][1].text} on every screen` : parts.map(([name, r]) => `${r.text} on ${name}`).join(", ");
   const every = allIssues(run);
-  const shown = every.filter(i => i.severity !== "low").slice(0, 4);
-  const lines = [`${host} fit check: ${scores}.`];
-  if (shown.length) {
-    for (const i of shown) lines.push(`${DOT[i.severity]} ${i.short}`);
-    if (every.length > shown.length) lines.push(`+${every.length - shown.length} smaller in the report.`);
-  } else {
-    lines.push(every.length ? "Nothing broken on any screen. A few small things are in the report." : "Nothing to fix on any screen.");
-  }
-  lines.push("", `Report card and full PDF below. Reply fix for your coding agent's fix list${pagesOffer(run.pages)}.`);
-  return lines.join("\n");
+  const big = every.filter(i => i.severity !== "low").length;
+  const found = big ? `${big} thing${big === 1 ? "" : "s"} to fix, ${scores}` : every.length ? `nothing broken, ${scores}` : `nothing to fix, ${scores}`;
+  return `${host} fit check attached: ${found}. Send the PDF to your coding agent as is; it has the fix list. ${pagesInvite(run.pages) ? `Reply ${pagesInvite(run.pages)}, or text` : "Text"} the URL again after you deploy.`;
+}
+
+/** The lines the text no longer carries, for the model to answer questions from. */
+export function issueLines(run) {
+  return allIssues(run).map(i => `${DOT[i.severity]} ${i.short}`);
 }
 
 /** "pages to check /about, /services and /contact too": the site's other main pages, found in this page's menu. */
@@ -221,19 +219,20 @@ export function recheckMessage(run, previous) {
   } else {
     scores = `Scores unchanged: ${both.map(([g, , a]) => `${a.text} on ${g}`).join(", ")}.`;
   }
-  const since = previous.audit.finishedAt ? `, compared with ${shortDate(previous.audit.finishedAt)}` : "";
-  const left = [...d.still, ...d.added];
+  const since = previous.audit.finishedAt ? ` (since ${shortDate(previous.audit.finishedAt)})` : "";
+  const left = d.still.length + d.added.length;
   const invite = pagesInvite(run.pages);
-  const closing = left.some(i => i.severity !== "low") ? `Reply fix for what's left${invite ? `, or ${invite}` : ""}.`
-    : left.length ? `Nothing broken left; the small things are in the report. Reply fix if you want those written up${invite ? `, or ${invite}` : ""}.`
-    : `Nothing left to fix on this page.${invite ? ` Reply ${invite}.` : ""}`;
+  const tail = left ? `The PDF has what's left${invite ? `; reply ${invite}` : ""}.` : `Nothing left to fix on this page.${invite ? ` Reply ${invite}.` : ""}`;
+  return `${page} again${since}: fixed ${d.fixed.length}, still there ${d.still.length}, new ${d.added.length}. ${scores} ${tail}`;
+}
+
+/** The re-check lines the text no longer carries, for the model to answer questions from. */
+export function recheckLines(run, previous) {
+  const d = diffRuns(previous, run);
   return [
-    `${page} again, 9 screens${since}. ${scores}`,
     `Fixed: ${d.fixed.length ? named(d.fixed, 6) : d.still.length ? "nothing yet" : "nothing"}.`,
     `Still there: ${listed(d.still, 4)}.`,
     `New: ${listed(d.added, 4)}.`,
     ...(d.googleAndAiUnchanged ? ["Google and AI unchanged."] : []),
-    "",
-    `Report card and full PDF below. ${closing}`,
-  ].join("\n");
+  ];
 }

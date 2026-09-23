@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { audit } from "./audit.mjs";
 import { renderGrid } from "./grid.mjs";
 import { seo } from "./seo.mjs";
-import { agentSummary, allIssues, diffRuns, fixPrompt, recheckMessage, resultMessage } from "./summarize.mjs";
+import { agentSummary, allIssues, diffRuns, fixPrompt, issueLines, recheckLines, recheckMessage, resultMessage } from "./summarize.mjs";
 import { imageRepairs } from "./repairs.mjs";
 import { mainPages, pageKey } from "./pages.mjs";
 import { renderCard } from "./card.mjs";
@@ -46,7 +46,7 @@ if (previousDir) {
     // changed since would compare two different pages.
     if (pageKey(earlier.audit.finalUrl ?? earlier.audit.url) !== pageKey(auditResult.finalUrl ?? url)) throw new Error("the earlier check landed on a different page");
     const d = diffRuns(earlier, run);
-    changes = { since: earlier.audit.finishedAt?.slice(0, 10) ?? null, fixed: d.fixed.map(i => i.short), stillThere: d.still.map(i => i.short), new: d.added.map(i => i.short) };
+    changes = { since: earlier.audit.finishedAt?.slice(0, 10) ?? null, summary: recheckLines(run, earlier), fixed: d.fixed.map(i => i.short), stillThere: d.still.map(i => i.short), new: d.added.map(i => i.short) };
     message = recheckMessage(run, earlier);
     previous = previousDir;
   } catch (error) {
@@ -59,6 +59,7 @@ const summary = {
   kind: "page",
   // The results text, built in code: send it word for word.
   message: message ?? resultMessage(run),
+  findings: issueLines(run),
   ...agentSummary(run),
   requested: url,
   date: run.date,

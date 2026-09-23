@@ -10,7 +10,7 @@ import { audit } from "./audit.mjs";
 import { seo } from "./seo.mjs";
 import { allIssues } from "./summarize.mjs";
 import { imageRepairs } from "./repairs.mjs";
-import { hostOf, labelOf, MAX_PAGES, pageKey, pagePath, pageScore, pagesFixPrompt, pagesMessage } from "./pages.mjs";
+import { hostOf, labelOf, MAX_PAGES, pageKey, pagePath, pageScore, pagesFixPrompt, pagesIssueLines, pagesMessage } from "./pages.mjs";
 import { renderPagesCard } from "./card.mjs";
 import { renderPagesReport } from "./report.mjs";
 
@@ -80,6 +80,7 @@ const summary = {
   kind: "pages",
   // The results text, built in code: send it word for word.
   message: pagesMessage(pr),
+  findings: pagesIssueLines(pr),
   site, host: pr.host, date: pr.date, firstRun: firstDir,
   pages: candidates,
   checked: pages.map(p => ({

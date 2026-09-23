@@ -17,7 +17,7 @@ import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { checkableUrl, UrlRefused } from "./url-guard.ts";
 import { ownerChatUid, sendFile } from "./plow-api.ts";
 import { previousRun } from "./runs.ts";
-import { fixReply } from "./replies.ts";
+import { COMMANDS, fixReply } from "./replies.ts";
 
 const WORKSPACE = process.env.RO_WORKSPACE ?? "/var/lib/plow/workspace";
 const RUNS = join(WORKSPACE, "ro", "runs");
@@ -88,10 +88,9 @@ function runScript(script: string, args: string[], timeout: number, explain: (st
 /** The reply to send, between the lines, then the measured details for follow-up questions. */
 function replyText(summary: Record<string, any>): string {
   return [
-    "Your reply is below, between the lines. Send it exactly as written: the text word for word, then the two MEDIA lines (the report card image and the full PDF report).",
+    "Your reply is below, between the lines. Send it exactly as written: the one line of text, then the MEDIA line (the PDF). Nothing else.",
     "-----",
     summary.message,
-    `MEDIA:${summary.images.card}`,
     `MEDIA:${summary.report}`,
     "-----",
     "The measured details, for answering follow-up questions (don't send these):",
@@ -183,12 +182,19 @@ export default definePluginEntry({
         const file = join(dir, "FIX-PROMPT.md");
         const pages = summary.kind === "pages" ? (summary.checked ?? []).filter((p: { skipped?: string }) => !p.skipped).length : 0;
         return ok([
-          "Your reply is below, between the lines. Send it exactly as written, as one message: the text word for word, then the MEDIA line (the fix list as a file).",
+          "Your reply is below, between the lines. Send it exactly as written: the one line of text, then the MEDIA line (the fix list as a file). Never paste the list into the text.",
           "-----",
-          fixReply(hostOf(summary.site), readFileSync(file, "utf8"), file, pages),
+          fixReply(hostOf(summary.site), file, pages),
           "-----",
         ].join("\n"), { file });
       },
+    });
+
+    api.registerTool({
+      name: "ro_commands", label: "What Sitemaxxing can do",
+      description: "The list of things the person can text, written ahead of time. Send it word for word when they ask what you can do or text \"commands\".",
+      parameters: { type: "object", additionalProperties: false, properties: {} },
+      async execute() { return ok(COMMANDS); },
     });
 
     api.registerTool({

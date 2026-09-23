@@ -81,29 +81,21 @@ export function mergeIssues(pages) {
     .sort((a, b) => RANK[b.severity] - RANK[a.severity] || b.pages.length - a.pages.length);
 }
 
-/** The results text for a pages run, built here so it reads the same every time. */
+/** The results text for a pages run, one line, built here so it reads the same every time. */
 export function pagesMessage(pr) {
   const checked = pr.pages.filter(p => p.audit && !p.home);
   const skipped = pr.pages.filter(p => !p.audit);
-  const lines = [];
-  if (checked.length) {
-    lines.push(`${pr.host}, ${checked.length} more page${checked.length === 1 ? "" : "s"} checked: ${checked.map(p => `${p.label} ${pageScore(p.audit)}`).join(", ")}.`);
-    const every = mergeIssues(checked);
-    const shown = every.filter(i => i.severity !== "low").slice(0, 4);
-    if (shown.length) {
-      for (const i of shown) lines.push(`${DOT[i.severity]} ${i.short} (${i.pages.join(", ")})`);
-      if (every.length > shown.length) lines.push(`+${every.length - shown.length} smaller in the report.`);
-    } else {
-      lines.push(every.length ? "Nothing broken on any of them. A few small things are in the report." : "Nothing to fix on any of them.");
-    }
-  } else {
-    lines.push(`${pr.host}: none of the other pages could be checked.`);
-  }
-  for (const p of skipped) lines.push(`Couldn't check ${p.label}: ${p.skipped}.`);
-  const first = pr.pages.find(p => p.home && p.audit);
   const total = pr.pages.filter(p => p.audit).length;
-  lines.push("", `Report card and full PDF below, covering ${total} pages${first ? ` including ${first.label === "Home" ? "the homepage" : first.label}` : ""}. Reply fix for your coding agent's fix list.`);
-  return lines.join("\n");
+  const big = mergeIssues(checked).filter(i => i.severity !== "low").length;
+  const parts = [`${pr.host}, ${checked.length} more page${checked.length === 1 ? "" : "s"} checked (${checked.map(p => `${p.label} ${pageScore(p.audit)}`).join(", ")}): ${big ? `${big} thing${big === 1 ? "" : "s"} to fix` : "nothing broken"}.`];
+  for (const p of skipped) parts.push(`Couldn't check ${p.label}: ${p.skipped}.`);
+  parts.push(`The PDF covers all ${total} pages; send it to your coding agent as is. Text the URL again after you deploy.`);
+  return parts.join(" ");
+}
+
+/** The per-issue lines the text no longer carries, for the model to answer questions from. */
+export function pagesIssueLines(pr) {
+  return mergeIssues(pr.pages.filter(p => p.audit && !p.home)).map(i => `${DOT[i.severity]} ${i.short} (${i.pages.join(", ")})`);
 }
 
 /** One fix list for every page checked, page by page, from the measurements. */

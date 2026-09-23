@@ -39,13 +39,12 @@ test("the result text: scores by device group, dots, worst first, no URLs", asyn
     { ...audit.screens[1], id: "iphone", score: 71 },
     { ...audit.screens[2], id: "desktop", score: 100 },
   ] };
-  const text = resultMessage({ url: "https://sbeoc.com", audit: withIds, seo: { issues: [{ severity: "medium", area: "seo", key: "no-description", title: "x" }] } });
-  const lines = text.split("\n");
-  assert.equal(lines[0], "sbeoc.com fit check: 71–75 on phones, 100 on computers.");
-  assert.equal(lines[1], '🔴 "Logo" image missing on iPhone SE and iPhone 15');
-  assert.equal(lines[2], "🟡 No Google description");
-  assert.match(text, /\+1 smaller in the report\./);
-  assert.doesNotMatch(text, /https?:\/\//);
+  const run = { url: "https://sbeoc.com", audit: withIds, seo: { issues: [{ severity: "medium", area: "seo", key: "no-description", title: "x" }] } };
+  const text = resultMessage(run);
+  assert.equal(text, "sbeoc.com fit check attached: 2 things to fix, 71–75 on phones, 100 on computers. Send the PDF to your coding agent as is; it has the fix list. Text the URL again after you deploy.");
+  assert.doesNotMatch(text, /https?:\/\/|\n/);
+  const { issueLines } = await import("../render/summarize.mjs");
+  assert.deepEqual(issueLines(run), ['🔴 "Logo" image missing on iPhone SE and iPhone 15', "🟡 No Google description", "⚪ Images far bigger than needed on iPhone 15"]);
 });
 
 test("where() names device groups in plain words", async () => {
