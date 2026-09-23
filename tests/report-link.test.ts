@@ -6,8 +6,8 @@ import { publishReport, withReportLink } from "../plugins/ro/report-link.ts";
 const link = { url: "https://sitemaxxing.ai/r/sbeoc.com", code: "114242" };
 
 test("the link and code are their own lines after the scores line", () => {
-  assert.equal(withReportLink("sbeoc.com · 5 things to fix\nPhones 75, tablets 75–100, computers 100\nReply pages for /about", link),
-    "sbeoc.com · 5 things to fix\nPhones 75, tablets 75–100, computers 100\nReport: https://sitemaxxing.ai/r/sbeoc.com\nCode: 114242\nReply pages for /about");
+  assert.equal(withReportLink("sbeoc.com · 5 things to fix\nScore: phones 75, tablets 75–100, computers 100\nReply pages for /about", link),
+    "sbeoc.com · 5 things to fix\nScore: phones 75, tablets 75–100, computers 100\nReport: https://sitemaxxing.ai/r/sbeoc.com\nCode: 114242\nReply pages for /about");
   assert.equal(withReportLink("one\ntwo", link), "one\ntwo\nReport: https://sitemaxxing.ai/r/sbeoc.com\nCode: 114242");
 });
 

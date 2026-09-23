@@ -38,7 +38,7 @@ test("the re-check text: one line per fact; the detail lines are separate", () =
   const before = run([50, 75, 90], [logo, sideways, taps], [noDescription, noLlms]);
   const after = run([88, 75, 90], [taps], [noDescription, noLlms]);
   const text = recheckMessage(after, before);
-  assert.equal(text, "sbeoc.com again · since Sep 22 · fixed 2, still there 3, new 0\nPhones 50 → 88, tablets 75, computers 90");
+  assert.equal(text, "sbeoc.com again · since Sep 22 · fixed 2, still there 3, new 0\nScore: phones 50 → 88, tablets 75, computers 90");
   assert.deepEqual(recheckLines(after, before), [
     'Fixed: the "Logo" image, the sideways scroll.',
     "Still there: buttons too small to tap, the missing description, plus 1 small thing in the report.",
@@ -70,14 +70,14 @@ test("when only small things are left, they're counted, not named; a clean page 
   const lines = recheckLines(run([100, 100, 100], [], [noLlms]), run([90, 100, 100], [taps], [noLlms]));
   assert.deepEqual(lines, ["Fixed: buttons too small to tap.", "Still there: 1 small thing in the report.", "New: nothing.", "Google and AI unchanged."]);
   const clean = recheckMessage({ ...run([100, 100, 100], [], []), pages: [{ path: "/about", label: "/about" }] }, run([90, 100, 100], [taps], []));
-  assert.match(clean, /nothing left to fix\nPhones 90 → 100, tablets 100, computers 100\nReply pages for \/about$/);
+  assert.match(clean, /nothing left to fix\nScore: phones 90 → 100, tablets 100, computers 100\nReply pages for \/about$/);
 });
 
 test("the re-check text: several score groups changed, nothing fixed yet, long lists capped", () => {
   const many = ["viewport", "covered", "clipped", "tiny-text", "headline-low", "oversized-images"].map(key => issue("medium", key, key, null));
   const before = run([50, 75, 90], [taps], [noLlms]);
   const after = run([30, 60, 90], [taps, ...many], [noLlms, noDescription]);
-  assert.equal(recheckMessage(after, before), "sbeoc.com again · since Sep 22 · fixed 0, still there 2, new 7\nPhones 50 → 30, tablets 75 → 60, computers 90");
+  assert.equal(recheckMessage(after, before), "sbeoc.com again · since Sep 22 · fixed 0, still there 2, new 7\nScore: phones 50 → 30, tablets 75 → 60, computers 90");
   const lines = recheckLines(after, before);
   assert.equal(lines[0], "Fixed: nothing yet.");
   assert.equal(lines[1], "Still there: buttons too small to tap, plus 1 small thing in the report.");
@@ -86,7 +86,7 @@ test("the re-check text: several score groups changed, nothing fixed yet, long l
 
 test("the re-check text when everything is fixed and scores didn't move", () => {
   const text = recheckMessage(run([100, 100, 100], [], []), run([100, 100, 100], [], [noLlms]));
-  assert.equal(text, "sbeoc.com again · since Sep 22 · fixed 1, still there 0, new 0 · nothing left to fix\nPhones 100, tablets 100, computers 100");
+  assert.equal(text, "sbeoc.com again · since Sep 22 · fixed 1, still there 0, new 0 · nothing left to fix\nScore: phones 100, tablets 100, computers 100");
 });
 
 test("every problem has a short name for the re-check lists", () => {

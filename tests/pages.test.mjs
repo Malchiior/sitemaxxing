@@ -75,7 +75,7 @@ test("mergeIssues: one line per problem across pages, worst severity, screens jo
 
 test("pagesMessage: one line with scores per page, skipped pages named, the PDF as the handoff", () => {
   const text = pagesMessage(run());
-  assert.equal(text, "sbeoc.com · 3 more pages · 3 things to fix\n/about 75–100, /projects 75–100, /contact 75–100\nCouldn't check /careers: it didn't load\nThe PDF covers all 4 pages");
+  assert.equal(text, "sbeoc.com · 3 more pages · 3 things to fix\nScore: /about 75–100, /projects 75–100, /contact 75–100\nCouldn't check /careers: it didn't load\nThe PDF covers all 4 pages");
   assert.doesNotMatch(text, /https?:\/\//);
   assert.deepEqual(pagesIssueLines(run()), [
     "🔴 Page scrolls sideways on iPhone 15 (/projects)",

@@ -121,7 +121,7 @@ write it.
 ro_check writes the text for you, one line per fact, like:
 
 sbeoc.com · 4 things to fix
-Phones 75, tablets 75–100, computers 100
+Score: phones 75, tablets 75–100, computers 100
 Report: https://sitemaxxing.ai/r/sbeoc.com
 Code: 577111
 Reply pages for /about, /projects, /solar and /electrical
@@ -144,7 +144,7 @@ ro_check_pages returns the line to send; send it as written.
 ro_check writes the text, like:
 
 sbeoc.com again · since Sep 22 · fixed 2, still there 3, new 0
-Phones 50–65 → 88–92, tablets 75, computers 90
+Score: phones 50–65 → 88–92, tablets 75, computers 90
 Report: https://sitemaxxing.ai/r/sbeoc.com
 Code: 301877
 
