@@ -12,6 +12,6 @@ for (const name of ["ro-config", "ro-card", "ro-main", "ro-probe"]) {
 await writeFile("/opt/plow/ro-probe", '#!/usr/bin/env node\nimport "./boot/ro-probe.js";\n', { mode: 0o755 });
 
 await mkdir("/opt/ro/plugins/ro/dist", { recursive: true });
-for (const name of ["index", "url-guard", "plow-api", "runs"]) {
+for (const name of ["index", "url-guard", "plow-api", "runs", "replies"]) {
   await writeFile(`/opt/ro/plugins/ro/dist/${name}.js`, strip(await readFile(`/opt/ro/plugins/ro/${name}.ts`, "utf8")));
 }

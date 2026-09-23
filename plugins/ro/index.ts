@@ -17,6 +17,7 @@ import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { checkableUrl, UrlRefused } from "./url-guard.ts";
 import { ownerChatUid, sendFile } from "./plow-api.ts";
 import { previousRun } from "./runs.ts";
+import { fixReply } from "./replies.ts";
 
 const WORKSPACE = process.env.RO_WORKSPACE ?? "/var/lib/plow/workspace";
 const RUNS = join(WORKSPACE, "ro", "runs");
@@ -173,13 +174,20 @@ export default definePluginEntry({
 
     api.registerTool({
       name: "ro_fix_prompt", label: "The fix prompt for the owner's coding agent",
-      description: "Return the fix prompt for the most recent check, built from its measurements. Send it word for word, never edited or summarized, so the owner can paste it into Claude Code, Codex, Cursor or any coding agent.",
+      description: "Return the reply that carries the fix prompt for the most recent check, built from its measurements: an intro line, the fix list word for word (never edited or summarized, so the owner can paste it into Claude Code, Codex, Cursor or any coding agent), a closing line, and the list as a file.",
       parameters: { type: "object", additionalProperties: false, properties: {} },
       async execute() {
         const dir = latestRun();
-        if (!dir) return fail("No check yet. Send a website address first.");
+        if (!dir) return fail("Nothing to fix yet. Text me a website address first.");
+        const summary = readSummary(dir);
         const file = join(dir, "FIX-PROMPT.md");
-        return ok(`${readFileSync(file, "utf8")}\n\n(To also attach it as a file: MEDIA:${file})`, { file });
+        const pages = summary.kind === "pages" ? (summary.checked ?? []).filter((p: { skipped?: string }) => !p.skipped).length : 0;
+        return ok([
+          "Your reply is below, between the lines. Send it exactly as written, as one message: the text word for word, then the MEDIA line (the fix list as a file).",
+          "-----",
+          fixReply(hostOf(summary.site), readFileSync(file, "utf8"), file, pages),
+          "-----",
+        ].join("\n"), { file });
       },
     });
 

@@ -17,7 +17,7 @@ digraph ro {
   pages_checked -> results_sent [label="one card + one PDF for every page"];
   results_sent -> fix_prompt_sent [label="fix: ro_fix_prompt, sent word for word"];
   results_sent -> handed_to_agent [label="send to <number>: plow_start_thread, owner only"];
-  fix_prompt_sent -> address [label="they fixed it: check again"];
+  fix_prompt_sent -> address [label="they deploy and text the site again: ro_check says what changed"];
 }
 ```
 
@@ -32,8 +32,9 @@ digraph ro {
    one reply covering every page: send it exactly, text then its two MEDIA
    lines, like a check. A bare "yes" after the results is ambiguous (fix or
    pages): ask which in one line.
-4. "fix", "fix list", "send me the fixes": call ro_fix_prompt and send what it
-   returns word for word, then one closing line.
+4. "fix", "fix list", "send me the fixes": call ro_fix_prompt and send the
+   reply it gives you exactly, as one message: the intro line, the fix list,
+   the closing line and its MEDIA line (the list as a file). Nothing else.
 5. "send to <number>", "send it to my agent": hand the fix list to their agent
    (below).
 6. "status", or "how did we do": ro_status.
@@ -155,20 +156,27 @@ address again.
 Here's the fix list for sbeoc.com, written for your coding agent. Paste the
 whole thing into Claude Code, Codex or Cursor in the site's repo. It's also
 attached as a file. Or reply "send to my agent" with your agent's number and
-I'll text it there. Text me the address again after you deploy and I'll
-re-check.
+I'll text it there.
 
-(then FIX-PROMPT.md word for word, one message, plus the .md attachment)
+(then FIX-PROMPT.md word for word)
+
+Text me the site again after you deploy and I'll show you what changed.
+
+(ro_fix_prompt returns all of this, with the .md attachment as a MEDIA line;
+after a pages check the first line says "for sbeoc.com, 5 pages". Send it as
+one message, as it is.)
 
 ### fix with nothing checked yet
 
 Nothing to fix yet. Text me a website address first.
 
+(ro_fix_prompt returns this line when there's no check; send it as written.)
+
 ### send to my agent +1 555 000 0000
 
 Sent the fix list for sbeoc.com to +1 555 000 0000 in a new thread. If your
-agent asks where the code is, tell it the repo. Text me the address again
-after it deploys and I'll re-check.
+agent asks where the code is, tell it the repo. Text me the site again after
+it deploys and I'll show you what changed.
 
 ### send to my agent, from someone who isn't the owner
 
