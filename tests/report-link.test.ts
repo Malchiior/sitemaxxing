@@ -5,7 +5,13 @@ import { publishReport, withReportLink } from "../plugins/ro/report-link.ts";
 
 const link = { url: "https://sitemaxxing.ai/r/sbeoc.com", code: "114242" };
 
-test("the link and code go after the first sentence, and the handoff sentence mentions the link", () => {
+test("the link and code are their own lines after the scores line", () => {
+  assert.equal(withReportLink("sbeoc.com · 5 things to fix\nPhones 75, tablets 75–100, computers 100\nReply pages for /about", link),
+    "sbeoc.com · 5 things to fix\nPhones 75, tablets 75–100, computers 100\nReport: https://sitemaxxing.ai/r/sbeoc.com\nCode: 114242\nReply pages for /about");
+  assert.equal(withReportLink("one\ntwo", link), "one\ntwo\nReport: https://sitemaxxing.ai/r/sbeoc.com\nCode: 114242");
+});
+
+test.skip("old sentence form", () => {
   const text = withReportLink("sbeoc.com fit check attached: 5 things to fix, 75 on phones. Send the PDF to your coding agent as is; it has the fix list. Reply pages to check /about too, or text the URL again after you deploy.", link);
   assert.equal(text, "sbeoc.com fit check attached: 5 things to fix, 75 on phones. Report: sitemaxxing.ai/r/sbeoc.com, code 114242. Give the PDF or that link to your coding agent as is. Reply pages to check /about too, or text the URL again after you deploy.");
   assert.match(withReportLink("sbeoc.com, 4 more pages checked (/a 90): 8 things to fix. The PDF covers all 5 pages; send it to your coding agent as is. Text the URL again after you deploy.", link),

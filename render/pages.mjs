@@ -81,16 +81,18 @@ export function mergeIssues(pages) {
     .sort((a, b) => RANK[b.severity] - RANK[a.severity] || b.pages.length - a.pages.length);
 }
 
-/** The results text for a pages run, one line, built here so it reads the same every time. */
+/** The results text for a pages run: one line per fact. */
 export function pagesMessage(pr) {
   const checked = pr.pages.filter(p => p.audit && !p.home);
   const skipped = pr.pages.filter(p => !p.audit);
   const total = pr.pages.filter(p => p.audit).length;
   const big = mergeIssues(checked).filter(i => i.severity !== "low").length;
-  const parts = [`${pr.host}, ${checked.length} more page${checked.length === 1 ? "" : "s"} checked (${checked.map(p => `${p.label} ${pageScore(p.audit)}`).join(", ")}): ${big ? `${big} thing${big === 1 ? "" : "s"} to fix` : "nothing broken"}.`];
-  for (const p of skipped) parts.push(`Couldn't check ${p.label}: ${p.skipped}.`);
-  parts.push(`The PDF covers all ${total} pages; send it to your coding agent as is. Text the URL again after you deploy.`);
-  return parts.join(" ");
+  return [
+    `${pr.host} · ${checked.length} more page${checked.length === 1 ? "" : "s"} · ${big ? `${big} thing${big === 1 ? "" : "s"} to fix` : "nothing broken"}`,
+    checked.map(p => `${p.label} ${pageScore(p.audit)}`).join(", "),
+    ...skipped.map(p => `Couldn't check ${p.label}: ${p.skipped}`),
+    `The PDF covers all ${total} pages`,
+  ].join("\n");
 }
 
 /** The per-issue lines the text no longer carries, for the model to answer questions from. */

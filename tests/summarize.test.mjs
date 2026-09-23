@@ -41,8 +41,8 @@ test("the result text: scores by device group, dots, worst first, no URLs", asyn
   ] };
   const run = { url: "https://sbeoc.com", audit: withIds, seo: { issues: [{ severity: "medium", area: "seo", key: "no-description", title: "x" }] } };
   const text = resultMessage(run);
-  assert.equal(text, "sbeoc.com fit check attached: 2 things to fix, 71–75 on phones, 100 on computers. Send the PDF to your coding agent as is; it has the fix list. Text the URL again after you deploy.");
-  assert.doesNotMatch(text, /https?:\/\/|\n/);
+  assert.equal(text, "sbeoc.com · 2 things to fix\nPhones 71–75, computers 100");
+  assert.doesNotMatch(text, /https?:\/\//);
   const { issueLines } = await import("../render/summarize.mjs");
   assert.deepEqual(issueLines(run), ['🔴 "Logo" image missing on iPhone SE and iPhone 15', "🟡 No Google description", "⚪ Images far bigger than needed on iPhone 15"]);
 });

@@ -5,7 +5,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { mainPages, mergeIssues, pageKey, pagePath, pageScore, pagesFixPrompt, pagesIssueLines, pagesMessage } from "../render/pages.mjs";
-import { pagesOffer, resultMessage, fixSections } from "../render/summarize.mjs";
+import { pagesInvite, resultMessage, fixSections } from "../render/summarize.mjs";
 import { seoIssues, SITE_WIDE } from "../render/seo.mjs";
 import { hostSize, pagesCardHtml } from "../render/card.mjs";
 import { pagesReportHtml } from "../render/report.mjs";
@@ -75,8 +75,8 @@ test("mergeIssues: one line per problem across pages, worst severity, screens jo
 
 test("pagesMessage: one line with scores per page, skipped pages named, the PDF as the handoff", () => {
   const text = pagesMessage(run());
-  assert.equal(text, "sbeoc.com, 3 more pages checked (/about 75–100, /projects 75–100, /contact 75–100): 3 things to fix. Couldn't check /careers: it didn't load. The PDF covers all 4 pages; send it to your coding agent as is. Text the URL again after you deploy.");
-  assert.doesNotMatch(text, /https?:\/\/|\n/);
+  assert.equal(text, "sbeoc.com · 3 more pages · 3 things to fix\n/about 75–100, /projects 75–100, /contact 75–100\nCouldn't check /careers: it didn't load\nThe PDF covers all 4 pages");
+  assert.doesNotMatch(text, /https?:\/\//);
   assert.deepEqual(pagesIssueLines(run()), [
     "🔴 Page scrolls sideways on iPhone 15 (/projects)",
     "🟡 Buttons too small to tap on iPhone 15 and iPad portrait (/about, /projects)",
@@ -113,12 +113,12 @@ test("fixSections alone says when a page is clean", () => {
 
 test("the result text offers the other pages by name, or by count when the list is long", () => {
   const withIds = { url: "https://sbeoc.com", audit: auditFor({}), seo: { issues: [] } };
-  assert.match(resultMessage({ ...withIds, pages: [{ path: "/about" }, { path: "/contact" }] }), /Reply pages to check \/about and \/contact too, or text the URL again after you deploy\.$/);
-  assert.match(resultMessage(withIds), /fix list\. Text the URL again after you deploy\.$/);
-  assert.equal(pagesOffer([{ path: "/about" }]), ", or pages to check /about too");
-  assert.equal(pagesOffer(mainPages([link("https://sbeoc.com/"), link("https://sbeoc.com/about")], "https://sbeoc.com/pricing")), ", or pages to check Home and /about too");
-  assert.equal(pagesOffer([{ path: "/a" }, { path: "/b" }, { path: "/c" }]), ", or pages to check /a, /b and /c too");
-  assert.equal(pagesOffer([{ path: "/services/commercial-electrical-contracting" }, { path: "/services/residential-electrical-contracting" }]), ", or pages to check 2 more pages from your menu");
+  assert.match(resultMessage({ ...withIds, pages: [{ path: "/about" }, { path: "/contact" }] }), /\nReply pages for \/about and \/contact$/);
+  assert.doesNotMatch(resultMessage(withIds), /Reply pages/);
+  assert.equal(pagesInvite([{ path: "/about" }]), "Reply pages for /about");
+  assert.equal(pagesInvite(mainPages([link("https://sbeoc.com/"), link("https://sbeoc.com/about")], "https://sbeoc.com/pricing")), "Reply pages for Home and /about");
+  assert.equal(pagesInvite([{ path: "/a" }, { path: "/b" }, { path: "/c" }]), "Reply pages for /a, /b and /c");
+  assert.equal(pagesInvite([{ path: "/services/commercial-electrical-contracting" }, { path: "/services/residential-electrical-contracting" }]), "Reply pages for 2 more pages from your menu");
 });
 
 test("seoIssues: a page run keeps page findings, drops site-wide ones, and says 'The page'", () => {

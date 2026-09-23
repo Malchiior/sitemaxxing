@@ -108,17 +108,19 @@ export function allIssues(run) {
     .sort((a, b) => RANK[b.severity] - RANK[a.severity]);
 }
 
-/** The results text, built here so it reads the same every time. */
+/** The results text, built here so it reads the same every time: one line per fact. */
 export function resultMessage(run) {
   const host = new URL(run.audit.finalUrl ?? run.url).hostname.replace(/^www\./, "");
   const g = groups(run.audit.screens);
-  const parts = [["phones", g.phones], ["tablets", g.tablets], ["computers", g.computers]].filter(([, r]) => r);
-  const same = parts.every(([, r]) => r.text === parts[0][1].text);
-  const scores = same ? `${parts[0][1].text} on every screen` : parts.map(([name, r]) => `${r.text} on ${name}`).join(", ");
+  const parts = [["Phones", g.phones], ["tablets", g.tablets], ["computers", g.computers]].filter(([, r]) => r);
   const every = allIssues(run);
   const big = every.filter(i => i.severity !== "low").length;
-  const found = big ? `${big} thing${big === 1 ? "" : "s"} to fix, ${scores}` : every.length ? `nothing broken, ${scores}` : `nothing to fix, ${scores}`;
-  return `${host} fit check attached: ${found}. Send the PDF to your coding agent as is; it has the fix list. ${pagesInvite(run.pages) ? `Reply ${pagesInvite(run.pages)}, or text` : "Text"} the URL again after you deploy.`;
+  const found = big ? `${big} thing${big === 1 ? "" : "s"} to fix` : every.length ? "nothing broken" : "nothing to fix";
+  return [
+    `${host} · ${found}`,
+    parts.map(([name, r]) => `${name} ${r.text}`).join(", "),
+    ...(pagesInvite(run.pages) ? [pagesInvite(run.pages)] : []),
+  ].join("\n");
 }
 
 /** The lines the text no longer carries, for the model to answer questions from. */
@@ -126,16 +128,13 @@ export function issueLines(run) {
   return allIssues(run).map(i => `${DOT[i.severity]} ${i.short}`);
 }
 
-/** "pages to check /about, /services and /contact too": the site's other main pages, found in this page's menu. */
+/** "Reply pages for /about, /services and /contact": the site's other main pages, found in this page's menu. */
 export function pagesInvite(pages) {
   if (!pages?.length) return "";
   const paths = pages.map(p => p.label ?? p.path);
   const named = paths.length === 1 ? paths[0] : `${paths.slice(0, -1).join(", ")} and ${paths.at(-1)}`;
-  return named.length <= 60 ? `pages to check ${named} too` : `pages to check ${paths.length} more pages from your menu`;
+  return named.length <= 60 ? `Reply pages for ${named}` : `Reply pages for ${paths.length} more pages from your menu`;
 }
-
-/** ", or pages to check … too", for the end of a "Reply fix …" sentence. */
-export const pagesOffer = pages => pagesInvite(pages) ? `, or ${pagesInvite(pages)}` : "";
 
 /** A compact summary for the agent to explain in a text message. */
 export function agentSummary(run) {
@@ -204,26 +203,20 @@ const listed = (items, max) => {
 };
 const shortDate = iso => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 
-/** The re-check text (messages.md, "Re-check after a deploy"): scores then and now, fixed, still there, new. */
+/** The re-check text: one line per fact. */
 export function recheckMessage(run, previous) {
   const url = new URL(run.audit.finalUrl ?? run.url);
   const page = `${url.hostname.replace(/^www\./, "")}${url.pathname.replace(/\/+$/, "")}`;
   const d = diffRuns(previous, run);
-  const both = ["phones", "tablets", "computers"].filter(g => d.scores.before[g] && d.scores.after[g]).map(g => [g, d.scores.before[g], d.scores.after[g]]);
-  const changed = both.filter(([, b, a]) => b.text !== a.text);
-  const same = both.filter(([, b, a]) => b.text === a.text);
-  let scores;
-  if (changed.length) {
-    scores = changed.map(([g, b, a], k) => `${k ? g : `${cap(g)} went`} from ${b.text} to ${a.text}`).join(", ") + ".";
-    if (same.length) scores += ` ${cap(same.map(([g]) => g).join(" and "))} unchanged.`;
-  } else {
-    scores = `Scores unchanged: ${both.map(([g, , a]) => `${a.text} on ${g}`).join(", ")}.`;
-  }
-  const since = previous.audit.finishedAt ? ` (since ${shortDate(previous.audit.finishedAt)})` : "";
+  const both = ["Phones", "tablets", "computers"].filter(g => d.scores.before[g.toLowerCase()] && d.scores.after[g.toLowerCase()]).map(g => [g, d.scores.before[g.toLowerCase()], d.scores.after[g.toLowerCase()]]);
+  const scores = both.map(([g, b, a]) => b.text === a.text ? `${g} ${a.text}` : `${g} ${b.text} → ${a.text}`).join(", ");
+  const since = previous.audit.finishedAt ? ` · since ${shortDate(previous.audit.finishedAt)}` : "";
   const left = d.still.length + d.added.length;
-  const invite = pagesInvite(run.pages);
-  const tail = left ? `The PDF has what's left${invite ? `; reply ${invite}` : ""}.` : `Nothing left to fix on this page.${invite ? ` Reply ${invite}.` : ""}`;
-  return `${page} again${since}: fixed ${d.fixed.length}, still there ${d.still.length}, new ${d.added.length}. ${scores} ${tail}`;
+  return [
+    `${page} again${since} · fixed ${d.fixed.length}, still there ${d.still.length}, new ${d.added.length}${left ? "" : " · nothing left to fix"}`,
+    scores,
+    ...(pagesInvite(run.pages) ? [pagesInvite(run.pages)] : []),
+  ].join("\n");
 }
 
 /** The re-check lines the text no longer carries, for the model to answer questions from. */

@@ -118,11 +118,15 @@ write it.
 
 ### Result
 
-ro_check writes the one line for you, like: "sbeoc.com fit check attached:
-4 things to fix, 75 on phones, 75–100 on tablets, 100 on computers. Send the
-PDF to your coding agent as is; it has the fix list. Reply pages to check
-/about, /projects, /solar and /electrical too, or text the URL again after
-you deploy." Send it word for word, then the PDF's MEDIA line.
+ro_check writes the text for you, one line per fact, like:
+
+sbeoc.com · 4 things to fix
+Phones 75, tablets 75–100, computers 100
+Report: https://sitemaxxing.ai/r/sbeoc.com
+Code: 577111
+Reply pages for /about, /projects, /solar and /electrical
+
+Send it word for word, line breaks included, then the PDF's MEDIA line.
 
 ### pages
 
@@ -137,9 +141,14 @@ ro_check_pages returns the line to send; send it as written.
 
 ### Re-check after a deploy
 
-ro_check writes the one line, like: "sbeoc.com again (since Sep 22): fixed 2,
-still there 3, new 0. Phones went from 50–65 to 88–92. Tablets and computers
-unchanged. The PDF has what's left." Send it word for word with the PDF.
+ro_check writes the text, like:
+
+sbeoc.com again · since Sep 22 · fixed 2, still there 3, new 0
+Phones 50–65 → 88–92, tablets 75, computers 90
+Report: https://sitemaxxing.ai/r/sbeoc.com
+Code: 301877
+
+Send it word for word with the PDF.
 
 ### fix
 

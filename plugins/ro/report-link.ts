@@ -31,12 +31,10 @@ export async function publishReport(input: { host: string; kind: string; pages: 
   return { url: data.url, code: data.code };
 }
 
-/** "sbeoc.com fit check: 5 things to fix, … Report: sitemaxxing.ai/r/sbeoc.com, code 114242. Give the PDF or that link…" */
+/** "Report: https://…/r/sbeoc.com" and "Code: 114242" as their own lines, after the scores line. */
 export function withReportLink(message: string, link: ReportLink | null): string {
   if (!link) return message;
-  const shown = link.url.replace(/^https?:\/\//, "");
-  const cut = message.indexOf(". ");
-  const first = cut === -1 ? message : message.slice(0, cut + 1);
-  const rest = cut === -1 ? "" : message.slice(cut + 2);
-  return `${first} Report: ${shown}, code ${link.code}. ${rest.replace(/^Send the PDF to your coding agent as is; it has the fix list\./, "Give the PDF or that link to your coding agent as is.").replace(/^The PDF covers all (\d+) pages; send it to your coding agent as is\./, "The PDF covers all $1 pages; give it or that link to your coding agent as is.").replace(/^The PDF has what's left/, "The PDF or that link has what's left")}`.trim();
+  const lines = message.split("\n");
+  lines.splice(Math.min(2, lines.length), 0, `Report: ${link.url}`, `Code: ${link.code}`);
+  return lines.join("\n");
 }
