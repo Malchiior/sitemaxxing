@@ -6,7 +6,7 @@ import { stripTypeScriptTypes } from "node:module";
 // builds into its own dist/.
 const strip = (source: string) => stripTypeScriptTypes(source.replaceAll(/(from "\.\/[^"\n]+)\.ts"/g, '$1.js"'));
 
-for (const name of ["ro-config", "ro-main", "ro-probe"]) {
+for (const name of ["ro-config", "ro-card", "ro-main", "ro-probe"]) {
   await writeFile(`/opt/plow/boot/${name}.js`, strip(await readFile(`/opt/plow/boot/${name}.ts`, "utf8")));
 }
 await writeFile("/opt/plow/ro-probe", '#!/usr/bin/env node\nimport "./boot/ro-probe.js";\n', { mode: 0o755 });

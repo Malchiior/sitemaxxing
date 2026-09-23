@@ -6,6 +6,7 @@ import { identityFromApi } from "./identity.ts";
 import { renderPrompt } from "./prompt.ts";
 import { startGateway } from "./process.ts";
 import { withRo } from "./ro-config.ts";
+import { contactCard } from "./ro-card.ts";
 
 // Plow's boot sequence (boot/main.ts in plow-openclaw-agent), reusing its
 // modules, with three additions: our tools and output cap in the config, our prompt
@@ -52,6 +53,11 @@ try {
   ].join("\n");
   await writeFile("/var/lib/plow/workspace/AGENTS.md", await renderPrompt(prompt, identity.mcp_url, process.env.PLOW_AGENT_TOKEN));
   await writeFile("/var/lib/plow/openclaw.json", JSON.stringify(config, null, 2) + "\n", { mode: 0o600 });
+  // This line's own contact card, attached to the first reply (prompt/RO.md).
+  const card = contactCard(config.agents.entries.main.identity.name, (identity.line as { provider_key?: string }).provider_key);
+  await mkdir("/var/lib/plow/workspace/ro", { recursive: true });
+  if (card) await writeFile("/var/lib/plow/workspace/ro/contact.vcf", card);
+  else await rm("/var/lib/plow/workspace/ro/contact.vcf", { force: true });
   console.log(`ro-boot: identity resolved to ${identity.line.uid}`);
   startReporter();
   await startGateway(false, identity.mcp_url ?? undefined);
