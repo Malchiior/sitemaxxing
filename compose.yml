@@ -9,6 +9,7 @@ services:
     env_file: ./plow-credentials
     volumes:
       - state:/var/lib/plow
+    restart: unless-stopped
     stop_grace_period: 35s
 volumes:
   state:
