@@ -59,10 +59,10 @@ COPY prompt/RO.md /opt/plow/prompt/RO.md
 COPY render/ /opt/ro/render/
 COPY assets/contact-photo.jpg assets/icon.png /opt/ro/assets/
 COPY plugins/ro/ /opt/ro/plugins/ro/
-COPY reporter/run.sh reporter/openclaw_bridge.py /opt/ro/reporter/
+COPY reporter/run.sh /opt/ro/reporter/
 RUN set -eu; \
     node /opt/plow/build-ro.ts; \
-    chmod 0755 /opt/ro/reporter/run.sh /opt/ro/reporter/openclaw_bridge.py; \
+    chmod 0755 /opt/ro/reporter/run.sh; \
     chmod 0644 /opt/ro/reporter/agent-index-client.py
 
 # Which agent this is on the Agent Index. Installs of this image join the

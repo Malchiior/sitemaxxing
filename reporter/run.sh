@@ -2,12 +2,10 @@
 # Report this agent's token usage to the Agent Index every five minutes.
 #
 # Same register-then-report loop as Plow's Hermes image
-# (plow-pbc/plow-hermes-agent, s6-rc.d/agent-index/run), plus two steps that
-# OpenClaw 2.0 needs and Hermes does not:
+# (plow-pbc/plow-hermes-agent, s6-rc.d/agent-index/run), plus one step that
+# OpenClaw needs and Hermes does not:
 #
-#   1. openclaw_bridge.py exports OpenClaw's SQLite transcripts to the session
-#      files agentsview reads. Without it this agent reports zero tokens.
-#   2. `agentsview sync` before each report, so the numbers are current. The
+#   1. `agentsview sync` before each report, so the numbers are current. The
 #      client's own call starts agentsview's daemon and can return before its
 #      first sync lands.
 #
@@ -18,7 +16,6 @@ PATH=/usr/local/bin:/usr/bin:/bin
 export PATH
 
 CLIENT=/opt/ro/reporter/agent-index-client.py
-BRIDGE=/opt/ro/reporter/openclaw_bridge.py
 INTERVAL=300
 
 # One persistent home for everything the reporter keeps:
@@ -49,7 +46,6 @@ set -- --register --agent "$AGENT_ID"
 [ -n "${AGENT_RUNTIME:-}" ] && set -- "$@" --runtime "$AGENT_RUNTIME"
 
 while :; do
-  python3 "$BRIDGE" >/dev/null || echo "agent-index: bridge pass had errors (above)" >&2
   agentsview sync >/dev/null 2>&1 || echo "agent-index: agentsview sync failed" >&2
 
   # 0 registered, 3 not registered, 2 state present but unreadable.

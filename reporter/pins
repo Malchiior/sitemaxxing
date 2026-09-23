@@ -2,8 +2,8 @@
 # A moving reference would put unreviewed code next to a live credential.
 
 # plow-pbc/agent-index-client (Apache-2.0) — the Agent Index usage reporter.
-client_sha=d1e6641bb8c72c0952c02cb9baf75f6145a3ed92
-client_sha256=718db0330f09b5dc72a6f3e53d47e7ea9f28ffd838dc8cb7afe6e3036ce09384
+client_sha=edf196031803e204cdbcd81ce574e1f54fd75f65
+client_sha256=970caf7534cd7d3b71ffee8f1a576f9da4dc494a508e8ab1998ee2ce6f4a2ac4
 
 # kenn-io/agentsview (MIT) — the usage index the reporter reads.
 # Checksums cross-checked against GitHub's release asset digests.
