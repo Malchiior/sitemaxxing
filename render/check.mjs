@@ -7,7 +7,9 @@ import { join } from "node:path";
 import { audit } from "./audit.mjs";
 import { renderGrid } from "./grid.mjs";
 import { seo } from "./seo.mjs";
-import { agentSummary, fixPrompt, groupScreenIssues, repairedImageUrl } from "./summarize.mjs";
+import { agentSummary, allIssues, fixPrompt, groupScreenIssues, repairedImageUrl, resultMessage } from "./summarize.mjs";
+import { renderCard } from "./card.mjs";
+import { renderReport } from "./report.mjs";
 
 const [, , url, runDir] = process.argv;
 const auditResult = await audit(url, runDir);
@@ -46,6 +48,16 @@ for (const issue of groupScreenIssues(auditResult).filter(i => i.key === "broken
 
 const run = { url, date: new Date().toISOString().slice(0, 10), audit: auditResult, seo: seoResult, repairs };
 writeFileSync(join(runDir, "FIX-PROMPT.md"), fixPrompt(run));
-const summary = { ...agentSummary(run), images: { grid, google: join(runDir, "google-preview.png") }, fixPrompt: join(runDir, "FIX-PROMPT.md") };
+const issues = allIssues(run);
+const card = await renderCard(run, issues, runDir);
+const report = await renderReport(run, issues, runDir);
+const summary = {
+  // The results text, built in code: send it word for word.
+  message: resultMessage(run),
+  ...agentSummary(run),
+  images: { card, grid, google: join(runDir, "google-preview.png") },
+  report,
+  fixPrompt: join(runDir, "FIX-PROMPT.md"),
+};
 writeFileSync(join(runDir, "summary.json"), JSON.stringify(summary, null, 2));
 console.log(JSON.stringify(summary));

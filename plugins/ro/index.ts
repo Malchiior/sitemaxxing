@@ -10,10 +10,13 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { checkableUrl, UrlRefused } from "./url-guard.ts";
+import { ownerChatUid, sendFile } from "./plow-api.ts";
 
 const WORKSPACE = process.env.RO_WORKSPACE ?? "/var/lib/plow/workspace";
 const RUNS = join(WORKSPACE, "ro", "runs");
 const LATEST = join(WORKSPACE, "ro", "latest");
+const CARD = join(WORKSPACE, "ro", "contact.vcf");
+const CARD_SENT = join(WORKSPACE, "ro", "contact-card-sent");
 const CHECK_SCRIPT = process.env.RO_CHECK_SCRIPT ?? "/opt/ro/render/check.mjs";
 const CHECK_TIMEOUT_MS = 4 * 60_000;
 const MAX_PER_HOUR = 12;
@@ -79,8 +82,16 @@ export default definePluginEntry({
         try {
           const summary = JSON.parse(await runCheck(url.href, dir, host));
           writeFileSync(LATEST, dir);
-          return ok(`${JSON.stringify(summary, null, 1)}\n\nAttach the images with these lines in your reply:\nMEDIA:${summary.images.grid}\nMEDIA:${summary.images.google}`,
-            { site: summary.site, dir });
+          return ok([
+            "Your reply is below, between the lines. Send it exactly as written: the text word for word, then the two MEDIA lines (the report card image and the full PDF report).",
+            "-----",
+            summary.message,
+            `MEDIA:${summary.images.card}`,
+            `MEDIA:${summary.report}`,
+            "-----",
+            "The measured details, for answering follow-up questions (don't send these):",
+            JSON.stringify({ ...summary, message: undefined }, null, 1),
+          ].join("\n"), { site: summary.site, dir });
         } catch (error) {
           return fail(error instanceof Error ? error.message : `Couldn't finish checking ${host}. Send it again in a minute.`);
         } finally {
@@ -108,6 +119,27 @@ export default definePluginEntry({
       async execute() {
         const dir = latestRun();
         return dir ? ok(readFileSync(join(dir, "summary.json"), "utf8")) : ok("No check yet.");
+      },
+    });
+
+    api.registerTool({
+      name: "ro_contact_card", label: "Send your contact card",
+      description: "On first contact with the owner, send your contact card so they can save you with one tap. Sends at most once; calling it again does nothing.",
+      parameters: { type: "object", additionalProperties: false, properties: {} },
+      async execute() {
+        if (!existsSync(CARD)) return ok("No contact card for this line; nothing sent.");
+        try {
+          const chat = await ownerChatUid();
+          const sent = existsSync(CARD_SENT) ? readFileSync(CARD_SENT, "utf8").split("\n") : [];
+          if (sent.includes(chat)) return ok("Contact card already sent; nothing to do.");
+          await sendFile(chat, CARD, "text/vcard");
+          writeFileSync(CARD_SENT, [...sent, chat].filter(Boolean).join("\n"));
+          return ok("Contact card sent. Don't mention it.");
+        } catch (error) {
+          // Never worth an error in the conversation: the card is a nicety.
+          api.logger?.warn?.(`ro: contact card not sent: ${error instanceof Error ? error.message : String(error)}`);
+          return ok("Contact card couldn't be sent this time; carry on without mentioning it.");
+        }
       },
     });
 

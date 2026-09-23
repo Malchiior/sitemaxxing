@@ -25,8 +25,33 @@ test("a URL with the domain pasted mid-path is repaired; normal URLs aren't", ()
 
 test("the fix prompt only contains measured issues, in priority sections", () => {
   const prompt = fixPrompt({ url: "https://sbeoc.com", date: "2026-09-23", audit, seo: { issues: [] }, repairs: ["x.jpg -> https://sbeoc.com/logo.png"] });
-  assert.match(prompt, /# Fix list for sbeoc\.com/);
-  assert.match(prompt, /## Fix first[\s\S]*don't load[\s\S]*https:\/\/sbeoc\.com\/logo\.png/);
-  assert.match(prompt, /## When there's time[\s\S]*big/);
-  assert.doesNotMatch(prompt, /## Then/);
+  assert.match(prompt, /FIX LIST FOR SBEOC\.COM/);
+  assert.match(prompt, /FIX FIRST[\s\S]*don't load[\s\S]*https:\/\/sbeoc\.com\/logo\.png/);
+  assert.match(prompt, /WHEN THERE'S TIME[\s\S]*big/);
+  assert.doesNotMatch(prompt, /^THEN$/m);
+  assert.doesNotMatch(prompt, /\*\*|^#/m, "no markdown syntax");
+});
+
+test("the result text: scores by device group, dots, worst first, no URLs", async () => {
+  const { resultMessage } = await import("../render/summarize.mjs");
+  const withIds = { ...audit, screens: [
+    { ...audit.screens[0], id: "iphone-se", score: 75 },
+    { ...audit.screens[1], id: "iphone", score: 71 },
+    { ...audit.screens[2], id: "desktop", score: 100 },
+  ] };
+  const text = resultMessage({ url: "https://sbeoc.com", audit: withIds, seo: { issues: [{ severity: "medium", area: "seo", key: "no-description", title: "x" }] } });
+  const lines = text.split("\n");
+  assert.equal(lines[0], "sbeoc.com fit check: 71–75 on phones, 100 on computers.");
+  assert.equal(lines[1], '🔴 "Logo" image missing on iPhone SE and iPhone 15');
+  assert.equal(lines[2], "🟡 No Google description");
+  assert.match(text, /\+1 smaller in the report\./);
+  assert.doesNotMatch(text, /https?:\/\//);
+});
+
+test("where() names device groups in plain words", async () => {
+  const { where } = await import("../render/labels.mjs");
+  assert.equal(where(["android-small", "iphone-se", "iphone", "iphone-max"]), "phones");
+  assert.equal(where(["android-small", "iphone-se", "iphone", "iphone-max", "ipad-portrait"]), "phones and iPad portrait");
+  assert.equal(where(["android-small", "iphone-se", "iphone", "iphone-max", "ipad-portrait", "ipad-landscape", "laptop", "desktop", "ultrawide"]), "all screens");
+  assert.equal(where(["laptop", "desktop", "ultrawide", "ipad-landscape"]), "iPad landscape and computers");
 });

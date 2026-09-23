@@ -54,6 +54,31 @@ export function issuesFor(screen, m) {
 
 export const scoreOf = issues => Math.max(0, 100 - issues.reduce((sum, i) => sum + WEIGHT[i.severity], 0));
 
+/**
+ * Whole-page views for the PDF, cut into slices that each fill a page: one
+ * phone and one laptop, which is how most people see a site. Capped so the PDF
+ * stays small enough to text.
+ */
+const FULL_PAGE = { iphone: { slice: 1000, max: 6 }, laptop: { slice: 1772, max: 4 } };
+
+async function fullPage(browser, screen, outDir, pageHeight) {
+  const { slice, max } = FULL_PAGE[screen.id];
+  const height = Math.min(pageHeight, slice * max);
+  await browser.send("Emulation.setDeviceMetricsOverride", { width: screen.width, height, deviceScaleFactor: 1, mobile: screen.mobile });
+  await browser.evaluate("new Promise(r => setTimeout(r, 400))");
+  const files = [];
+  for (let y = 0, k = 0; y < height; y += slice, k++) {
+    const shot = await browser.send("Page.captureScreenshot", {
+      format: "jpeg", quality: 60, captureBeyondViewport: true,
+      clip: { x: 0, y, width: screen.width, height: Math.min(slice, height - y), scale: 1 },
+    });
+    const file = join(outDir, "screens", `${screen.id}-full-${k + 1}.jpg`);
+    writeFileSync(file, Buffer.from(shot.data, "base64"));
+    files.push(file);
+  }
+  return files;
+}
+
 export async function audit(url, outDir) {
   mkdirSync(join(outDir, "screens"), { recursive: true });
   const browser = await launch();
@@ -84,9 +109,13 @@ export async function audit(url, outDir) {
       const shot = await browser.send("Page.captureScreenshot", { format: "png" });
       const file = join(outDir, "screens", `${screen.id}.png`);
       writeFileSync(file, Buffer.from(shot.data, "base64"));
+      const jpeg = await browser.send("Page.captureScreenshot", { format: "jpeg", quality: 72 });
+      const foldJpeg = join(outDir, "screens", `${screen.id}.jpg`);
+      writeFileSync(foldJpeg, Buffer.from(jpeg.data, "base64"));
       const measurements = await browser.evaluate(`(${MEASURE})(${JSON.stringify({ touch: screen.touch, dpr: screen.dpr })})`);
       const issues = issuesFor(screen, measurements);
-      report.screens.push({ id: screen.id, label: screen.label, width: screen.width, height: screen.height, file, score: scoreOf(issues), issues, measurements });
+      const slices = FULL_PAGE[screen.id] ? await fullPage(browser, screen, outDir, measurements.pageHeight) : [];
+      report.screens.push({ id: screen.id, label: screen.label, width: screen.width, height: screen.height, file, foldJpeg, slices, score: scoreOf(issues), issues, measurements });
     }
   } finally {
     browser.close();

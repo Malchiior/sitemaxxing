@@ -3,6 +3,8 @@
 // audit.json and seo.json: nothing here is written by a model, so a fix can
 // only say what was measured.
 
+import { DOT, groups, shortTitle } from "./labels.mjs";
+
 const RANK = { high: 3, medium: 2, low: 1 };
 
 /** One entry per problem, with every screen it appears on, worst first. */
@@ -10,8 +12,9 @@ export function groupScreenIssues(audit) {
   const byKey = new Map();
   for (const screen of audit.screens) {
     for (const issue of screen.issues) {
-      const entry = byKey.get(issue.key) ?? { key: issue.key, severity: issue.severity, title: issue.title, screens: [], evidence: issue.evidence, area: "screens" };
+      const entry = byKey.get(issue.key) ?? { key: issue.key, severity: issue.severity, title: issue.title, screens: [], screenIds: [], evidence: issue.evidence, area: "screens" };
       entry.screens.push(`${screen.label} ${screen.width}×${screen.height}`);
+      entry.screenIds.push(screen.id);
       if (RANK[issue.severity] > RANK[entry.severity]) Object.assign(entry, { severity: issue.severity, title: issue.title, evidence: issue.evidence });
       byKey.set(issue.key, entry);
     }
@@ -72,19 +75,50 @@ export function fixPrompt(run) {
   const section = (severity, heading) => {
     const items = all.filter(i => i.severity === severity);
     if (!items.length) return "";
-    return `## ${heading}\n\n` + items.map(i => {
+    // Plain text, no markdown syntax: it's read in iMessage before it's pasted,
+    // and coding agents read it the same either way.
+    return `${heading.toUpperCase()}\n\n` + items.map((i, k) => {
       const where = i.screens.length ? ` (${i.screens.length === 9 ? "all 9 screens" : i.screens.join(", ")})` : "";
-      return `- **${i.title}**${where}\n  Fix: ${(FIX[i.key] ?? (() => "See the evidence above."))(i)}`;
-    }).join("\n") + "\n\n";
+      return `${k + 1}. ${i.title}${where}\nFix: ${(FIX[i.key] ?? (() => "See the evidence above."))(i)}`;
+    }).join("\n\n") + "\n\n";
   };
-  return `# Fix list for ${host}
+  return `FIX LIST FOR ${host.toUpperCase()}
 
-You're working on the website ${run.audit.finalUrl ?? run.url}. On ${run.date}, an automated check opened its homepage on 9 screen sizes (360 to 2560 wide) and checked its SEO and how well AI tools can read it. Every item below was measured, not guessed.
+You're working on the website ${run.audit.finalUrl ?? run.url}. On ${run.date}, an automated check opened the page on 9 screen sizes (360 to 2560 wide) and checked its SEO and how well AI tools can read it. Every item below was measured, not guessed.
 
 Fix them in this codebase. For each one, find the code responsible and make the smallest change that fixes it. Don't change the copy, routes, forms or tracking unless the fix says to. When you're done, check the page at 375px and 1440px wide.
 
 ${section("high", "Fix first")}${section("medium", "Then")}${section("low", "When there's time")}Screens checked: Small Android 360×800, iPhone SE 375×667, iPhone 15 393×852, iPhone Pro Max 430×932, iPad 768×1024 and 1024×768, laptop 1366×768, desktop 1920×1080, ultrawide 2560×1080.
 `.replace(/\n{3,}/g, "\n\n");
+}
+
+/** Every issue, screens then Google and AI, worst first, with short human titles. */
+export function allIssues(run) {
+  const screens = groupScreenIssues(run.audit);
+  const seo = (run.seo?.issues ?? []).map(i => ({ ...i, screens: [], screenIds: [] }));
+  return [...screens, ...seo]
+    .map(i => ({ ...i, short: shortTitle(i) }))
+    .sort((a, b) => RANK[b.severity] - RANK[a.severity]);
+}
+
+/** The results text, built here so it reads the same every time. */
+export function resultMessage(run) {
+  const host = new URL(run.audit.finalUrl ?? run.url).hostname.replace(/^www\./, "");
+  const g = groups(run.audit.screens);
+  const parts = [["phones", g.phones], ["tablets", g.tablets], ["computers", g.computers]].filter(([, r]) => r);
+  const same = parts.every(([, r]) => r.text === parts[0][1].text);
+  const scores = same ? `${parts[0][1].text} on every screen` : parts.map(([name, r]) => `${r.text} on ${name}`).join(", ");
+  const every = allIssues(run);
+  const shown = every.filter(i => i.severity !== "low").slice(0, 4);
+  const lines = [`${host} fit check: ${scores}.`];
+  if (shown.length) {
+    for (const i of shown) lines.push(`${DOT[i.severity]} ${i.short}`);
+    if (every.length > shown.length) lines.push(`+${every.length - shown.length} smaller in the report.`);
+  } else {
+    lines.push(every.length ? "Nothing broken on any screen. A few small things are in the report." : "Nothing to fix on any screen.");
+  }
+  lines.push("", "Report card and full PDF below. Reply fix for your coding agent's fix list.");
+  return lines.join("\n");
 }
 
 /** A compact summary for the agent to explain in a text message. */
