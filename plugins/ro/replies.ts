@@ -9,13 +9,26 @@ export function fixReply(host: string, file: string, pages = 0): string {
   ].join("\n");
 }
 
-/** The "commands" text. */
+/** The "commands" text: an emoji per action, so a reply of just the emoji works too. */
 export const COMMANDS = [
-  "What I can do:",
-  "- a website URL: fit check on 9 screens, Google and AI readability, PDF with the fix list. About a minute.",
-  "- pages: the same for up to 4 more pages from that site's menu. About a minute per page.",
-  "- the same URL again: what got fixed, what's still there, what's new since last time.",
-  "- fix: the fix list as a file, for your coding agent.",
-  "- send to my agent +1 555 000 0000: text the fix list to your coding agent's Plow number.",
-  "- status: the last check.",
-].join("\n");
+  "What I can do. Reply with the word or just the emoji.",
+  "",
+  "🔍 A website URL",
+  "Fit check on 9 screens, Google and AI readability. PDF with the fix list. About a minute.",
+  "",
+  "📄 pages",
+  "The same check on up to 4 more pages from that site's menu. About a minute per page.",
+  "",
+  "🔁 The same URL again",
+  "What got fixed, what's still there, what's new since last time.",
+  "",
+  "🛠️ fix",
+  "The fix list as a file, for your coding agent.",
+  "",
+  "📤 send to my agent +1 555 000 0000",
+  "Texts the fix list to your coding agent's Plow number.",
+  "",
+  "📊 status",
+  "The last check.",
+].join("
+");

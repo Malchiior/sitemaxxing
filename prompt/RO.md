@@ -33,7 +33,10 @@ digraph ro {
    reply exactly: one line, then the MEDIA line (the list as a file). Never
    paste the list into the text.
 5. "commands", "help", "what can you do": call ro_commands and send it as it
-   is.
+   is. Each action there has an emoji, and a reply of just that emoji means
+   that action: 📄 = pages, 🔁 = check the last site again (ro_check with
+   its address from ro_status), 🛠️ = fix, 📊 = status, 📤 = send to my agent
+   (ask for the number if none was given), 🔍 = ask for the address.
 6. "send to <number>", "send it to my agent": hand the fix list to their agent
    (below).
 7. "status", or "how did we do": ro_status, then one short line from it.
@@ -145,7 +148,8 @@ Nothing to fix yet. Text me a website address first.
 
 ### commands
 
-ro_commands returns the list; send it as it is.
+ro_commands returns the list, one action per block with its emoji; send it
+as it is, blank lines included.
 
 ### A URL arrives while a check is running
 
