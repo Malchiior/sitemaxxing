@@ -3,7 +3,7 @@
 // audit.json and seo.json: nothing here is written by a model, so a fix can
 // only say what was measured.
 
-import { DOT, groups, shortTitle } from "./labels.mjs";
+import { diffName, DOT, groups, shortTitle } from "./labels.mjs";
 
 const RANK = { high: 3, medium: 2, low: 1 };
 
@@ -128,13 +128,16 @@ export function resultMessage(run) {
   return lines.join("\n");
 }
 
-/** ", or pages to check /about, /services and /contact too": the site's other main pages, found in this page's menu. */
-export function pagesOffer(pages) {
+/** "pages to check /about, /services and /contact too": the site's other main pages, found in this page's menu. */
+export function pagesInvite(pages) {
   if (!pages?.length) return "";
   const paths = pages.map(p => p.label ?? p.path);
   const named = paths.length === 1 ? paths[0] : `${paths.slice(0, -1).join(", ")} and ${paths.at(-1)}`;
-  return named.length <= 60 ? `, or pages to check ${named} too` : `, or pages to check ${paths.length} more pages from your menu`;
+  return named.length <= 60 ? `pages to check ${named} too` : `pages to check ${paths.length} more pages from your menu`;
 }
+
+/** ", or pages to check … too", for the end of a "Reply fix …" sentence. */
+export const pagesOffer = pages => pagesInvite(pages) ? `, or ${pagesInvite(pages)}` : "";
 
 /** A compact summary for the agent to explain in a text message. */
 export function agentSummary(run) {
@@ -148,4 +151,89 @@ export function agentSummary(run) {
     readableWithoutJavaScript: run.seo?.noJs ? `${run.seo.noJs.share}%` : null,
     repairsChecked: run.repairs ?? [],
   };
+}
+
+/** Every broken image in a run, one per src, from the measurements (an issue's evidence keeps only four). */
+const brokenImages = run => {
+  const seen = new Map();
+  for (const s of run.audit.screens) for (const img of s.measurements?.images?.broken ?? []) if (img?.src && !seen.has(img.src)) seen.set(img.src, img);
+  return [...seen.values()];
+};
+
+/**
+ * What changed between two checks of the same page, problem by problem: fixed,
+ * still there, new. Broken images are compared image by image, since they're
+ * named one by one ("the Logo image"), and fixing one of two is progress.
+ */
+export function diffRuns(previous, current) {
+  const before = allIssues(previous), after = allIssues(current);
+  const was = new Set(before.map(i => i.key)), is = new Set(after.map(i => i.key));
+  const seoKeys = run => (run.seo?.issues ?? []).map(i => i.key).sort().join(",");
+  const d = {
+    scores: { before: groups(previous.audit.screens), after: groups(current.audit.screens) },
+    fixed: before.filter(i => !is.has(i.key)),
+    still: after.filter(i => was.has(i.key)),
+    added: after.filter(i => !was.has(i.key)),
+    googleAndAiUnchanged: seoKeys(previous) === seoKeys(current),
+  };
+  const b = before.find(i => i.key === "broken-images"), a = after.find(i => i.key === "broken-images");
+  if (b && a) {
+    const bList = brokenImages(previous).length ? brokenImages(previous) : b.evidence ?? [];
+    const aList = brokenImages(current).length ? brokenImages(current) : a.evidence ?? [];
+    const bSrcs = new Set(bList.map(e => e.src)), aSrcs = new Set(aList.map(e => e.src));
+    const part = (issue, list, keep) => {
+      const evidence = list.filter(keep);
+      return evidence.length ? [{ ...issue, evidence, short: shortTitle({ ...issue, evidence }) }] : [];
+    };
+    d.fixed = [...part(b, bList, e => !aSrcs.has(e.src)), ...d.fixed];
+    d.still = d.still.flatMap(i => i.key === "broken-images" ? part(a, aList, e => bSrcs.has(e.src)) : [i]);
+    d.added = [...part(a, aList, e => !bSrcs.has(e.src)), ...d.added];
+  }
+  return d;
+}
+
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const named = (items, max) => {
+  const list = items.map(diffName);
+  return list.length <= max ? list.join(", ") : `${list.slice(0, max).join(", ")} and ${list.length - max} more`;
+};
+/** "buttons too small to tap, plus 2 small things in the report": the real problems by name, the small ones by count. */
+const listed = (items, max) => {
+  const big = items.filter(i => i.severity !== "low"), small = items.length - big.length;
+  const smallText = small ? `${small} small thing${small === 1 ? "" : "s"} in the report` : "";
+  if (!big.length) return smallText || "nothing";
+  return smallText ? `${named(big, max)}, plus ${smallText}` : named(big, max);
+};
+const shortDate = iso => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+
+/** The re-check text (messages.md, "Re-check after a deploy"): scores then and now, fixed, still there, new. */
+export function recheckMessage(run, previous) {
+  const url = new URL(run.audit.finalUrl ?? run.url);
+  const page = `${url.hostname.replace(/^www\./, "")}${url.pathname.replace(/\/+$/, "")}`;
+  const d = diffRuns(previous, run);
+  const both = ["phones", "tablets", "computers"].filter(g => d.scores.before[g] && d.scores.after[g]).map(g => [g, d.scores.before[g], d.scores.after[g]]);
+  const changed = both.filter(([, b, a]) => b.text !== a.text);
+  const same = both.filter(([, b, a]) => b.text === a.text);
+  let scores;
+  if (changed.length) {
+    scores = changed.map(([g, b, a], k) => `${k ? g : `${cap(g)} went`} from ${b.text} to ${a.text}`).join(", ") + ".";
+    if (same.length) scores += ` ${cap(same.map(([g]) => g).join(" and "))} unchanged.`;
+  } else {
+    scores = `Scores unchanged: ${both.map(([g, , a]) => `${a.text} on ${g}`).join(", ")}.`;
+  }
+  const since = previous.audit.finishedAt ? `, compared with ${shortDate(previous.audit.finishedAt)}` : "";
+  const left = [...d.still, ...d.added];
+  const invite = pagesInvite(run.pages);
+  const closing = left.some(i => i.severity !== "low") ? `Reply fix for what's left${invite ? `, or ${invite}` : ""}.`
+    : left.length ? `Nothing broken left; the small things are in the report. Reply fix if you want those written up${invite ? `, or ${invite}` : ""}.`
+    : `Nothing left to fix on this page.${invite ? ` Reply ${invite}.` : ""}`;
+  return [
+    `${page} again, 9 screens${since}. ${scores}`,
+    `Fixed: ${d.fixed.length ? named(d.fixed, 6) : d.still.length ? "nothing yet" : "nothing"}.`,
+    `Still there: ${listed(d.still, 4)}.`,
+    `New: ${listed(d.added, 4)}.`,
+    ...(d.googleAndAiUnchanged ? ["Google and AI unchanged."] : []),
+    "",
+    `Report card and full PDF below. ${closing}`,
+  ].join("\n");
 }

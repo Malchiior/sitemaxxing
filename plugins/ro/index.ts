@@ -4,6 +4,8 @@
 // - ro_check_pages checks up to four more pages of the site just checked (found
 //   in its menu by that check, so the same public-site rule holds), under the
 //   same one-at-a-time rule, and counts once against the hourly cap.
+// - A page checked before is compared with that check (runs.ts finds it), and
+//   the results text says what changed, built in code.
 // - ro_fix_prompt returns the prompt render/summarize.mjs built from those
 //   measurements, word for word; the model doesn't write fixes.
 // - Only the owner can send results to another number (plow_start_thread),
@@ -14,6 +16,7 @@ import { join } from "node:path";
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { checkableUrl, UrlRefused } from "./url-guard.ts";
 import { ownerChatUid, sendFile } from "./plow-api.ts";
+import { previousRun } from "./runs.ts";
 
 const WORKSPACE = process.env.RO_WORKSPACE ?? "/var/lib/plow/workspace";
 const RUNS = join(WORKSPACE, "ro", "runs");
@@ -114,14 +117,16 @@ export default definePluginEntry({
         const host = url.hostname.replace(/^www\./, "");
         const refused = refusal(host);
         if (refused) return refused;
+        // Checked before? Then the results say what changed since (render/check.mjs).
+        const previous = previousRun(RUNS, url.href);
         const dir = join(RUNS, `${stamp()}-${host}`);
         mkdirSync(dir, { recursive: true });
         running = { what: host, wait: "about a minute" };
         recent.push(Date.now());
         try {
-          const summary = JSON.parse(await runScript(CHECK_SCRIPT, [url.href, dir], CHECK_TIMEOUT_MS, (stderr, timedOut) => failureText(host, stderr, timedOut)));
+          const summary = JSON.parse(await runScript(CHECK_SCRIPT, [url.href, dir, ...(previous ? [previous] : [])], CHECK_TIMEOUT_MS, (stderr, timedOut) => failureText(host, stderr, timedOut)));
           writeFileSync(LATEST, dir);
-          return ok(replyText(summary), { site: summary.site, dir });
+          return ok(replyText(summary), { site: summary.site, dir, previous });
         } catch (error) {
           return fail(error instanceof Error ? error.message : `Couldn't finish checking ${host}. Send it again in a minute.`);
         } finally {

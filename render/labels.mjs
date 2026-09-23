@@ -38,6 +38,9 @@ export const groups = screens => ({
 
 const n = (count, one, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
 
+/** Alt text as a name: one line, at most 60 characters (a site can put anything in alt). */
+const altName = alt => { const s = String(alt ?? "").replace(/\s+/g, " ").trim(); return s.length > 60 ? `${s.slice(0, 57)}…` : s; };
+
 /** A short headline for one grouped issue, e.g. "Logo image missing on phones and iPad portrait". */
 export function shortTitle(issue) {
   const on = issue.screenIds?.length ? ` on ${where(issue.screenIds)}` : "";
@@ -48,7 +51,8 @@ export function shortTitle(issue) {
     case "headline-cut": return `Headline cut off${on}`;
     case "covered": return `Pop-up covers the page${on}`;
     case "broken-images": {
-      const alt = Array.isArray(ev) && ev[0]?.alt ? `"${ev[0].alt}" image` : Array.isArray(ev) && ev.length > 1 ? n(ev.length, "image") : "An image";
+      const name = Array.isArray(ev) ? altName(ev[0]?.alt) : "";
+      const alt = name ? `"${name}" image` : Array.isArray(ev) && ev.length > 1 ? n(ev.length, "image") : "An image";
       return `${alt} missing${on}`;
     }
     case "headline-low": return `Headline not on the first screen${on}`;
@@ -84,3 +88,47 @@ export function shortTitle(issue) {
 }
 
 export const DOT = { high: "🔴", medium: "🟡", low: "⚪" };
+
+/** A short name for one problem, for "Fixed: the logo, the sideways scroll" in a re-check. */
+export function diffName(issue) {
+  const ev = issue.evidence;
+  switch (issue.key) {
+    case "viewport": return "the missing viewport tag";
+    case "sideways": return "the sideways scroll";
+    case "headline-cut": return "the cut-off headline";
+    case "covered": return "the pop-up covering the page";
+    case "broken-images": {
+      const name = Array.isArray(ev) ? altName(ev[0]?.alt) : "";
+      return name ? `the "${name}" image` : Array.isArray(ev) && ev.length > 1 ? `the ${ev.length} missing images` : "the missing image";
+    }
+    case "headline-low": return "the headline below the first screen";
+    case "tiny-text": return "the tiny text";
+    case "tap-targets": return "buttons too small to tap";
+    case "cramped-targets": return "the slightly small buttons";
+    case "clipped": return "the cut-off text";
+    case "heavy": return "the heavy page";
+    case "action-low": return "the main button below the first screen";
+    case "oversized-images": return "the oversized images";
+    case "unreachable": return "the error the page answers a plain visit with";
+    case "noindex": return "the noindex tag";
+    case "google-blocked": return "robots.txt blocking Google";
+    case "no-title": return "the missing title";
+    case "title-cut": return "the cut-off title";
+    case "no-description": return "the missing description";
+    case "description-cut": return "the cut-off description";
+    case "no-h1": return "the missing main headline";
+    case "many-h1": return "the extra main headlines";
+    case "alt-text": return "the missing alt text";
+    case "no-share-image": return "the missing share image";
+    case "no-canonical": return "the missing canonical link";
+    case "no-sitemap": return "the missing sitemap";
+    case "firewall": return "the firewall turning away AI crawlers";
+    case "thin": return "the near-empty page";
+    case "js-only": return "the text AI can't see";
+    case "ai-blocked": return "AI crawlers blocked in robots.txt";
+    case "no-schema": return "the missing structured data";
+    case "no-llms-txt": return "the missing llms.txt";
+    case "no-lang": return "the missing page language";
+    default: return issue.title;
+  }
+}

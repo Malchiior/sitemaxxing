@@ -37,8 +37,10 @@ digraph ro {
 5. "send to <number>", "send it to my agent": hand the fix list to their agent
    (below).
 6. "status", or "how did we do": ro_status.
-7. The same site again: check it again and say what changed since last time,
-   from the two sets of results.
+7. The same page again (after a deploy): call ro_check as usual. When the
+   page was checked before, the reply it returns already says what changed
+   since (fixed, still there, new), from the two sets of measurements. Send
+   it word for word, like any result.
 
 ## Non-negotiables, and why
 
@@ -185,9 +187,20 @@ send it again, or paste the fix list yourself; it's in the file above.
 
 ### Re-check after a deploy
 
-sbeoc.com again, 9 screens. Phones went from 50–65 to 88–92. Fixed: the logo,
-the sideways scroll. Still there: 6 buttons under 24px. New: nothing. Google
-and AI unchanged. Reply fix for what's left.
+sbeoc.com again, 9 screens, compared with Sep 22. Phones went from 50–65 to
+88–92. Tablets and computers unchanged.
+Fixed: the "Logo" image, the sideways scroll.
+Still there: buttons too small to tap, plus 2 small things in the report.
+New: nothing.
+Google and AI unchanged.
+
+Report card and full PDF below. Reply fix for what's left, or pages to check
+/about and /contact too.
+
+(ro_check writes this text, from the two checks' measurements, whenever the
+same page was checked before. Send it word for word with the card and the
+PDF, like a first result; don't rewrite it or add to it. The "A URL arrives"
+line before it is the same.)
 
 ### status
 
