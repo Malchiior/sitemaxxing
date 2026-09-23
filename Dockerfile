@@ -57,6 +57,7 @@ COPY boot/ /opt/plow/boot/
 COPY build-ro.ts /opt/plow/build-ro.ts
 COPY prompt/RO.md /opt/plow/prompt/RO.md
 COPY render/ /opt/ro/render/
+COPY assets/contact-photo.jpg /opt/ro/assets/contact-photo.jpg
 COPY plugins/ro/ /opt/ro/plugins/ro/
 COPY reporter/run.sh reporter/openclaw_bridge.py /opt/ro/reporter/
 RUN set -eu; \

@@ -20,3 +20,11 @@ test("an email line becomes EMAIL; anything else, no card", () => {
 test("commas and semicolons in text are escaped", () => {
   assert.match(contactCard("Acme, Inc; Web", "+15551234567")!, /FN:Acme\\, Inc\\; Web/);
 });
+
+test("a photo is embedded and every line stays within 75 characters", () => {
+  const card = contactCard("Sitemaxxing", "+16503156335", Buffer.alloc(3000, 7))!;
+  assert.match(card, /\r\nPHOTO;ENCODING=b;TYPE=JPEG:/);
+  for (const line of card.split("\r\n")) assert.ok(line.length <= 75, `line of ${line.length}`);
+  const unfolded = card.replace(/\r\n /g, "");
+  assert.match(unfolded, new RegExp(`PHOTO;ENCODING=b;TYPE=JPEG:${Buffer.alloc(3000, 7).toString("base64").replace(/[+/]/g, "\$&")}\r\n`));
+});
