@@ -16,7 +16,7 @@ import { join } from "node:path";
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { checkableUrl, UrlRefused } from "./url-guard.ts";
 import { ownerChatUid, sendFile, sendText } from "./plow-api.ts";
-import { previousRun } from "./runs.ts";
+import { earlierRuns } from "./runs.ts";
 import { COMMANDS, fixReply, greeting } from "./replies.ts";
 import { publishReport, withReportLink } from "./report-link.ts";
 
@@ -150,13 +150,14 @@ export default definePluginEntry({
         // check starts: the same words every time, and never forgotten.
         const acked = await ackNow(ctx, api.logger);
         // Checked before? Then the results say what changed since (render/check.mjs).
-        const previous = previousRun(RUNS, url.href);
+        const earlier = earlierRuns(RUNS, url.href);
+        const previous = earlier[0] ?? null;
         const dir = join(RUNS, `${stamp()}-${host}`);
         mkdirSync(dir, { recursive: true });
         running = { what: host, wait: "about a minute" };
         recent.push(Date.now());
         try {
-          const summary = JSON.parse(await runScript(CHECK_SCRIPT, [url.href, dir, ...(previous ? [previous] : [])], CHECK_TIMEOUT_MS, (stderr, timedOut) => failureText(host, stderr, timedOut)));
+          const summary = JSON.parse(await runScript(CHECK_SCRIPT, [url.href, dir, previous ?? "", String(earlier.length + 1)], CHECK_TIMEOUT_MS, (stderr, timedOut) => failureText(host, stderr, timedOut)));
           writeFileSync(LATEST, dir);
           summary.message = withReportLink(summary.message, await linkFor(summary, "page", 1, api.logger));
           return ok(replyText(summary, acked), { site: summary.site, dir, previous });

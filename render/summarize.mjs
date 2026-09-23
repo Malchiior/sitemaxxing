@@ -108,17 +108,24 @@ export function allIssues(run) {
     .sort((a, b) => RANK[b.severity] - RANK[a.severity]);
 }
 
+/** "📱 phones 75 🔴 · tablets 75–100 🟡 · 💻 computers 100 🟢": a dot per group, green 90+, yellow 70+, red below. */
+export function scoreLine(screens) {
+  const g = groups(screens);
+  const dot = r => r.lo >= 90 ? "🟢" : r.lo >= 70 ? "🟡" : "🔴";
+  const parts = [["📱 phones", g.phones], ["tablets", g.tablets], ["💻 computers", g.computers]].filter(([, r]) => r);
+  return `Score: ${parts.map(([name, r]) => `${name} ${r.text} ${dot(r)}`).join(" · ")}`;
+}
+
 /** The results text, built here so it reads the same every time: one line per fact. */
 export function resultMessage(run) {
   const host = new URL(run.audit.finalUrl ?? run.url).hostname.replace(/^www\./, "");
-  const g = groups(run.audit.screens);
-  const parts = [["phones", g.phones], ["tablets", g.tablets], ["computers", g.computers]].filter(([, r]) => r);
   const every = allIssues(run);
   const big = every.filter(i => i.severity !== "low").length;
   const found = big ? `${big} thing${big === 1 ? "" : "s"} to fix` : every.length ? "nothing broken" : "nothing to fix";
   return [
-    `${host} · ${found}`,
-    `Score: ${parts.map(([name, r]) => `${name} ${r.text}`).join(", ")}`,
+    `${host} (report ${run.reportNumber ?? 1})`,
+    found,
+    scoreLine(run.audit.screens),
     ...(pagesInvite(run.pages) ? [pagesInvite(run.pages)] : []),
   ].join("\n");
 }
@@ -133,7 +140,7 @@ export function pagesInvite(pages) {
   if (!pages?.length) return "";
   const paths = pages.map(p => p.label ?? p.path);
   const named = paths.length === 1 ? paths[0] : `${paths.slice(0, -1).join(", ")} and ${paths.at(-1)}`;
-  return named.length <= 60 ? `Reply pages for ${named}` : `Reply pages for ${paths.length} more pages from your menu`;
+  return named.length <= 60 ? `Text pages for a report on ${named}` : `Text pages for a report on ${paths.length} more pages from your menu`;
 }
 
 /** A compact summary for the agent to explain in a text message. */
@@ -208,13 +215,12 @@ export function recheckMessage(run, previous) {
   const url = new URL(run.audit.finalUrl ?? run.url);
   const page = `${url.hostname.replace(/^www\./, "")}${url.pathname.replace(/\/+$/, "")}`;
   const d = diffRuns(previous, run);
-  const both = ["phones", "tablets", "computers"].filter(g => d.scores.before[g.toLowerCase()] && d.scores.after[g.toLowerCase()]).map(g => [g, d.scores.before[g.toLowerCase()], d.scores.after[g.toLowerCase()]]);
-  const scores = both.map(([g, b, a]) => b.text === a.text ? `${g} ${a.text}` : `${g} ${b.text} → ${a.text}`).join(", ");
-  const since = previous.audit.finishedAt ? ` · since ${shortDate(previous.audit.finishedAt)}` : "";
+  const last = previous.audit.finishedAt ? ` · last ${shortDate(previous.audit.finishedAt)}` : "";
   const left = d.still.length + d.added.length;
   return [
-    `${page} again${since} · fixed ${d.fixed.length}, still there ${d.still.length}, new ${d.added.length}${left ? "" : " · nothing left to fix"}`,
-    `Score: ${scores}`,
+    `${page} (report ${run.reportNumber ?? 2})${last}`,
+    `fixed ${d.fixed.length}, same ${d.still.length}, new ${d.added.length}${left ? "" : " · nothing left to fix"}`,
+    scoreLine(run.audit.screens),
     ...(pagesInvite(run.pages) ? [pagesInvite(run.pages)] : []),
   ].join("\n");
 }

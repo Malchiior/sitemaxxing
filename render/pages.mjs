@@ -87,9 +87,11 @@ export function pagesMessage(pr) {
   const skipped = pr.pages.filter(p => !p.audit);
   const total = pr.pages.filter(p => p.audit).length;
   const big = mergeIssues(checked).filter(i => i.severity !== "low").length;
+  const dot = audit => { const lo = Math.min(...audit.screens.map(s => s.score)); return lo >= 90 ? "🟢" : lo >= 70 ? "🟡" : "🔴"; };
   return [
-    `${pr.host} · ${checked.length} more page${checked.length === 1 ? "" : "s"} · ${big ? `${big} thing${big === 1 ? "" : "s"} to fix` : "nothing broken"}`,
-    `Score: ${checked.map(p => `${p.label} ${pageScore(p.audit)}`).join(", ")}`,
+    `${pr.host} · ${checked.length} more page${checked.length === 1 ? "" : "s"}`,
+    big ? `${big} thing${big === 1 ? "" : "s"} to fix` : "nothing broken",
+    `Score: ${checked.map(p => `${p.label} ${pageScore(p.audit)} ${dot(p.audit)}`).join(" · ")}`,
     ...skipped.map(p => `Couldn't check ${p.label}: ${p.skipped}`),
     `The PDF covers all ${total} pages`,
   ].join("\n");

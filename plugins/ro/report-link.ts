@@ -35,6 +35,7 @@ export async function publishReport(input: { host: string; kind: string; pages: 
 export function withReportLink(message: string, link: ReportLink | null): string {
   if (!link) return message;
   const lines = message.split("\n");
-  lines.splice(Math.min(2, lines.length), 0, `Report: ${link.url}`, `Code: ${link.code}`);
+  const at = lines.findIndex(l => l.startsWith("Score:"));
+  lines.splice(at === -1 ? Math.min(2, lines.length) : at + 1, 0, `Report: ${link.url}`, `Code: ${link.code}`);
   return lines.join("\n");
 }

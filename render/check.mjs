@@ -15,7 +15,7 @@ import { mainPages, pageKey } from "./pages.mjs";
 import { renderCard } from "./card.mjs";
 import { renderReport } from "./report.mjs";
 
-const [, , url, runDir, previousDir] = process.argv;
+const [, , url, runDir, previousDir, reportNumber] = process.argv;
 const auditResult = await audit(url, runDir);
 // A bot check or login wall isn't the site: stop rather than report on it.
 const gate = auditResult.screens.find(s => s.id === "laptop")?.measurements.gate;
@@ -29,7 +29,7 @@ const repairs = await imageRepairs(auditResult, url);
 // The site's other main pages, from this page's menu, for "check my pages".
 const pages = mainPages(seoResult.page?.navLinks, auditResult.finalUrl ?? url);
 
-const run = { url, date: new Date().toISOString().slice(0, 10), audit: auditResult, seo: seoResult, repairs, pages };
+const run = { url, date: new Date().toISOString().slice(0, 10), audit: auditResult, seo: seoResult, repairs, pages, reportNumber: Number(reportNumber) || 1 };
 writeFileSync(join(runDir, "FIX-PROMPT.md"), fixPrompt(run));
 const issues = allIssues(run);
 const card = await renderCard(run, issues, runDir);

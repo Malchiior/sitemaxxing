@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { diffRuns, recheckLines, recheckMessage } from "../render/summarize.mjs";
 import { diffName } from "../render/labels.mjs";
-import { pageKey, previousRun } from "../plugins/ro/runs.ts";
+import { earlierRuns, pageKey, previousRun } from "../plugins/ro/runs.ts";
 
 const issue = (severity, key, title, evidence = null) => ({ severity, key, title, evidence });
 const screen = (id, score, issues) => ({ id, label: id, width: 375, height: 800, score, issues, measurements: {} });
@@ -38,7 +38,8 @@ test("the re-check text: one line per fact; the detail lines are separate", () =
   const before = run([50, 75, 90], [logo, sideways, taps], [noDescription, noLlms]);
   const after = run([88, 75, 90], [taps], [noDescription, noLlms]);
   const text = recheckMessage(after, before);
-  assert.equal(text, "sbeoc.com again · since Sep 22 · fixed 2, still there 3, new 0\nScore: phones 50 → 88, tablets 75, computers 90");
+  assert.equal(text, "sbeoc.com (report 2) · last Sep 22\nfixed 2, same 3, new 0\nScore: 📱 phones 88 🟡 · tablets 75 🟡 · 💻 computers 90 🟢");
+  assert.match(recheckMessage({ ...after, reportNumber: 5 }, before), /^sbeoc\.com \(report 5\)/);
   assert.deepEqual(recheckLines(after, before), [
     'Fixed: the "Logo" image, the sideways scroll.',
     "Still there: buttons too small to tap, the missing description, plus 1 small thing in the report.",
@@ -46,9 +47,9 @@ test("the re-check text: one line per fact; the detail lines are separate", () =
     "Google and AI unchanged.",
   ]);
   const withPages = { ...after, pages: [{ path: "/about", label: "/about" }] };
-  assert.match(recheckMessage(withPages, before), /\nReply pages for \/about$/);
+  assert.match(recheckMessage(withPages, before), /\nText pages for a report on \/about$/);
   const deeper = { ...after, audit: { ...after.audit, finalUrl: "https://www.sbeoc.com/pricing/" } };
-  assert.match(recheckMessage(deeper, before), /^sbeoc\.com\/pricing again/);
+  assert.match(recheckMessage(deeper, before), /^sbeoc\.com\/pricing \(report 2\)/);
 });
 
 test("broken images are compared one by one: fixing one of two is credited, a new one is new", () => {
@@ -56,7 +57,7 @@ test("broken images are compared one by one: fixing one of two is credited, a ne
   const hero = issue("high", "broken-images", "1 image(s) don't load", [{ src: "hero.jpg", alt: "Hero" }]);
   const partly = recheckLines(run([50, 75, 90], [hero], []), run([50, 75, 90], [logoAndHero], []));
   assert.deepEqual(partly.slice(0, 3), ['Fixed: the "Logo" image.', 'Still there: the "Hero" image.', "New: nothing."]);
-  assert.match(recheckMessage(run([50, 75, 90], [hero], []), run([50, 75, 90], [logoAndHero], [])), /fixed 1, still there 1, new 0/);
+  assert.match(recheckMessage(run([50, 75, 90], [hero], []), run([50, 75, 90], [logoAndHero], [])), /fixed 1, same 1, new 0/);
   const swapped = recheckLines(run([50, 75, 90], [hero], []), run([50, 75, 90], [logo], []));
   assert.deepEqual(swapped.slice(0, 3), ['Fixed: the "Logo" image.', "Still there: nothing.", 'New: the "Hero" image.']);
 });
@@ -70,14 +71,14 @@ test("when only small things are left, they're counted, not named; a clean page 
   const lines = recheckLines(run([100, 100, 100], [], [noLlms]), run([90, 100, 100], [taps], [noLlms]));
   assert.deepEqual(lines, ["Fixed: buttons too small to tap.", "Still there: 1 small thing in the report.", "New: nothing.", "Google and AI unchanged."]);
   const clean = recheckMessage({ ...run([100, 100, 100], [], []), pages: [{ path: "/about", label: "/about" }] }, run([90, 100, 100], [taps], []));
-  assert.match(clean, /nothing left to fix\nScore: phones 90 → 100, tablets 100, computers 100\nReply pages for \/about$/);
+  assert.match(clean, /nothing left to fix\nScore: 📱 phones 100 🟢 · tablets 100 🟢 · 💻 computers 100 🟢\nText pages for a report on \/about$/);
 });
 
 test("the re-check text: several score groups changed, nothing fixed yet, long lists capped", () => {
   const many = ["viewport", "covered", "clipped", "tiny-text", "headline-low", "oversized-images"].map(key => issue("medium", key, key, null));
   const before = run([50, 75, 90], [taps], [noLlms]);
   const after = run([30, 60, 90], [taps, ...many], [noLlms, noDescription]);
-  assert.equal(recheckMessage(after, before), "sbeoc.com again · since Sep 22 · fixed 0, still there 2, new 7\nScore: phones 50 → 30, tablets 75 → 60, computers 90");
+  assert.equal(recheckMessage(after, before), "sbeoc.com (report 2) · last Sep 22\nfixed 0, same 2, new 7\nScore: 📱 phones 30 🔴 · tablets 60 🔴 · 💻 computers 90 🟢");
   const lines = recheckLines(after, before);
   assert.equal(lines[0], "Fixed: nothing yet.");
   assert.equal(lines[1], "Still there: buttons too small to tap, plus 1 small thing in the report.");
@@ -86,7 +87,7 @@ test("the re-check text: several score groups changed, nothing fixed yet, long l
 
 test("the re-check text when everything is fixed and scores didn't move", () => {
   const text = recheckMessage(run([100, 100, 100], [], []), run([100, 100, 100], [], [noLlms]));
-  assert.equal(text, "sbeoc.com again · since Sep 22 · fixed 1, still there 0, new 0 · nothing left to fix\nScore: phones 100, tablets 100, computers 100");
+  assert.equal(text, "sbeoc.com (report 2) · last Sep 22\nfixed 1, same 0, new 0 · nothing left to fix\nScore: 📱 phones 100 🟢 · tablets 100 🟢 · 💻 computers 100 🟢");
 });
 
 test("every problem has a short name for the re-check lists", () => {
@@ -120,6 +121,7 @@ test("previousRun finds the newest finished check of the same page, never a page
   assert.equal(previousRun(runs, "https://fluidicsystems.com/"), join(runs, "20260922T140000-other"), "an older run without 'requested' matches by site");
   assert.equal(previousRun(runs, "https://example.com/home"), join(runs, "20260922T145000-redirected"), "matches where the earlier check landed, too");
   assert.equal(previousRun(runs, "https://sbeoc.com/about"), null);
+  assert.equal(earlierRuns(runs, "https://sbeoc.com/").length, 2, "two finished checks of the homepage");
   assert.equal(previousRun(join(runs, "missing"), "https://sbeoc.com/"), null);
   assert.equal(pageKey("https://WWW.sbeoc.com/about/#top"), "sbeoc.com/about");
   rmSync(runs, { recursive: true, force: true });
