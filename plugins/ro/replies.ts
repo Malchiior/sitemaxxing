@@ -1,6 +1,5 @@
-// The "fix" reply, built here so it reads the same every time (prompt/RO.md,
-// "fix"): the intro, the fix list word for word, the closing line that
-// invites the re-check, and the list as a file to attach.
+// The "fix" reply and the "commands" text, built here so they read the same
+// every time (prompt/RO.md). One line, then the file; the value is in the file.
 export function fixReply(host: string, file: string, pages = 0): string {
   const what = pages > 1 ? `${host}, ${pages} pages` : host;
   return [
@@ -30,5 +29,4 @@ export const COMMANDS = [
   "",
   "📊 status",
   "The last check.",
-].join("
-");
+].join("\n");

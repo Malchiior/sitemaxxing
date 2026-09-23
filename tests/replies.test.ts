@@ -15,5 +15,6 @@ test("the fix reply: one line ending with the re-check invitation, then the file
 test("the commands text is short, plain and complete", () => {
   for (const word of ["pages", "fix", "send to my agent", "status", "same URL again"]) assert.ok(COMMANDS.includes(word), word);
   assert.doesNotMatch(COMMANDS, /[*#]/);
-  assert.ok(COMMANDS.split("\n").length <= 8);
+  for (const e of ["🔍", "📄", "🔁", "🛠️", "📤", "📊"]) assert.ok(COMMANDS.includes(e), e);
+  assert.equal(COMMANDS.split("\n\n").length, 7, "one block per action, blank lines between");
 });
