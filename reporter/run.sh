@@ -27,10 +27,12 @@ HOME=/var/lib/plow/.reporter
 export HOME
 mkdir -p "$HOME"
 # Installs from before the client read OpenClaw's store exported the
-# transcripts to ~/.openclaw/agents for agentsview. The client now reads the
-# store itself and adds collectors up, so that export would count everything
-# twice. Nothing reads it any more: remove it.
-rm -rf "$HOME/.openclaw/agents"
+# transcripts to ~/.openclaw/agents for agentsview, and agentsview's own index
+# still holds what it read there. The client now reads the store itself and
+# adds collectors up, so either would count everything twice (seen: exactly
+# 2x). Nothing needs them any more: remove both; `agentsview sync` below
+# rebuilds an index from the sources that remain, which is none here.
+rm -rf "$HOME/.openclaw/agents" "$HOME/.agentsview"
 # No Hermes store here. Unset, the client reads agentsview only, which is
 # correct; set to a path without a store, it would refuse to report at all.
 unset HERMES_HOME
