@@ -1,3 +1,4 @@
+name: sitemaxxing
 # Local run on a real Plow line:
 #   plow-agents mint LINE_UID      # writes ./plow-credentials
 #   docker compose up --build -d

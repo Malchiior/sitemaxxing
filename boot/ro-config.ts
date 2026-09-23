@@ -2,7 +2,7 @@ import type { renderConfig } from "./config.ts";
 
 type Config = ReturnType<typeof renderConfig>;
 
-/** Resolution Optimizer's tools (plugins/ro). */
+/** Sitemaxxing's tools (plugins/ro). */
 export const RO_TOOLS = ["ro_check", "ro_fix_prompt", "ro_status"];
 export const RO_PLUGIN_PATH = "/opt/ro/plugins/ro";
 /**

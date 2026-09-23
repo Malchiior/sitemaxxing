@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 #
-# Resolution Optimizer — text it your website; it checks it on nine screens,
-# for SEO and for AI readability, and hands your coding agent the fixes.
+# Sitemaxxing — text it your website for a fit check: nine screens, SEO and
+# AI readability, and a fix list your coding agent applies.
 #
 # Built on Plow's OpenClaw base (plow-pbc/plow-openclaw-agent). That base is
 # fetched here from a pinned commit instead of being copied into this repo, so
@@ -12,7 +12,7 @@ FROM ghcr.io/openclaw/openclaw:2026.9.4@sha256:cc596b846506a5f4cfcee111394a2725f
 
 ARG PLOW_BASE_REF=9ac3a563a1c2454f97c50b18dc376386d8b3dec0
 ARG TARGETARCH
-LABEL org.opencontainers.image.source=https://github.com/Malchiior/resolution-optimizer \
+LABEL org.opencontainers.image.source=https://github.com/Malchiior/sitemaxxing \
       org.opencontainers.image.licenses=MIT \
       co.plow.probe=/opt/plow/ro-probe
 USER root
@@ -70,10 +70,10 @@ ENV OPENCLAW_STATE_DIR=/var/lib/plow \
     OPENCLAW_CONFIG_PATH=/var/lib/plow/openclaw.json \
     OPENCLAW_NO_RESPAWN=1 \
     NODE_DISABLE_COMPILE_CACHE=1 \
-    AGENT_ID=resolution-optimizer \
-    AGENT_NAME="Resolution Optimizer" \
-    AGENT_BLURB="Text it your website. It opens your site on 9 real screens, from small phones to ultrawide, measures what breaks on each, shows how you look in Google and to AI agents, and writes the fixes your team approves by text." \
-    AGENT_REPO=https://github.com/Malchiior/resolution-optimizer \
+    AGENT_ID=sitemaxxing \
+    AGENT_NAME="Sitemaxxing" \
+    AGENT_BLURB="Text it your website for a fit check: your homepage on 9 screens with what's broken measured, a Google preview, and whether AI can read you. Reply fix for a prompt your coding agent applies. Mog your competition with a fit check from our sitemaxxing AI agent." \
+    AGENT_REPO=https://github.com/Malchiior/sitemaxxing \
     AGENT_RUNTIME="OpenClaw 2.0"
 
 # The inherited healthcheck loads config and can race the boot state lock.

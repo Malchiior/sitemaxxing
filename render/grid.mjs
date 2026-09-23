@@ -39,7 +39,7 @@ export function gridHtml(report) {
     .issue { margin-top: 12px; min-height: 42px; color: #d6d9e0; }
     .more { color: #9aa3b2; }
   </style></head><body>
-    <header><h1>${esc(host)} <span>on 9 screens</span></h1><div class="brand">Resolution Optimizer · ${new Date(report.finishedAt ?? Date.now()).toISOString().slice(0, 10)}</div></header>
+    <header><h1>${esc(host)} <span>on 9 screens</span></h1><div class="brand">Sitemaxxing fit check · ${new Date(report.finishedAt ?? Date.now()).toISOString().slice(0, 10)}</div></header>
     <div class="grid">${tiles}</div>
   </body></html>`;
 }

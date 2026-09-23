@@ -15,6 +15,6 @@ jobs:
           node --test tests/url-guard.test.ts tests/summarize.test.mjs
           python3 -m unittest discover -s tests -p 'test_*.py'
       - name: Build image (verifies every pinned checksum)
-        run: docker build -t resolution-optimizer:ci .
+        run: docker build -t sitemaxxing:ci .
       - name: Offline probe (Chromium renders 9 screens; gateway boots with the plugin)
-        run: docker run --rm --network none resolution-optimizer:ci /opt/plow/ro-probe | tee probe.log && grep -q RO_PROBE_OK probe.log
+        run: docker run --rm --network none sitemaxxing:ci /opt/plow/ro-probe | tee probe.log && grep -q RO_PROBE_OK probe.log

@@ -1,6 +1,8 @@
-# Resolution Optimizer — text it your site, see it on 9 screens, get the fix
+# Sitemaxxing — text it your site for a fit check on 9 screens, then get the fix
 
 **Free · MIT · one-click on Plow · runs on the model Plow supplies**
+
+Mog your competition with a fit check from our sitemaxxing AI agent.
 
 Text it your website address. In about a minute it sends back one picture:
 your homepage on nine real screen sizes, from a small Android phone to an
@@ -21,7 +23,7 @@ Nothing to connect. Nothing to install. No accounts, no keys. One text.
 
 ## How it works
 
-1. **Nine screens.** It opens your homepage in a real browser as a small Android (360×800), iPhone SE (375×667), iPhone 15 (393×852), iPhone Pro Max (430×932), iPad portrait (768×1024) and landscape (1024×768), laptop (1366×768), desktop (1920×1080) and ultrawide (2560×1080). Touch, pixel density and user agent are set like the real device.
+1. **The fit check.** It opens your homepage in a real browser as a small Android (360×800), iPhone SE (375×667), iPhone 15 (393×852), iPhone Pro Max (430×932), iPad portrait (768×1024) and landscape (1024×768), laptop (1366×768), desktop (1920×1080) and ultrawide (2560×1080). Touch, pixel density and user agent are set like the real device.
 2. **Measured issues.** On each screen it measures, not eyeballs: sideways scrolling, a headline cut off, a popup covering the first screen, broken images, text under 12px, tap targets under WCAG's 24px minimum, text clipped inside its box, page weight, oversized images, and whether the headline and main button are on the first screen. Each issue carries its evidence: the element, its text, the pixel numbers.
 3. **One grid.** Nine screenshots in one image, labeled, with a score per screen.
 4. **Google and AI.** A drawn-to-scale Google result (labeled as a simulation) showing exactly where your title and description get cut off. Then: does robots.txt or your firewall turn away Googlebot, GPTBot, OAI-SearchBot, ClaudeBot, PerplexityBot, Google-Extended or CCBot; how much of your text is visible without JavaScript; is there structured data, a sitemap, an llms.txt, alt text, one H1, a share image, a canonical link, a language.
@@ -129,6 +131,8 @@ Not for: apps behind a login, flows that need clicks, or anyone wanting a rankin
 ## FAQ
 
 **Does it need my code or any account?** No. A public URL is the whole setup.
+
+**What's a fit check?** Your site, tried on nine screens, like an outfit tried on before you go out. Does it fit, or is something hanging off the edge?
 
 **Why nine screens?** Because "looks fine on my phone" hides the 360px Android, the iPad in landscape, and the ultrawide where your hero stretches. The nine cover the sizes people actually use.
 

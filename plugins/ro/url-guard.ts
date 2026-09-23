@@ -1,4 +1,4 @@
-// Which addresses Resolution Optimizer will open. Public websites only: the
+// Which addresses Sitemaxxing will open. Public websites only: the
 // check runs a real browser inside the container, so an internal address
 // (localhost, a private network, cloud metadata) must never reach it.
 import { lookup } from "node:dns/promises";

@@ -1,4 +1,4 @@
-// Resolution Optimizer's tools. The rules that matter are here, in code:
+// Sitemaxxing's tools. The rules that matter are here, in code:
 // - ro_check opens public websites only (url-guard), one at a time, capped per
 //   hour, and every number it reports was measured by render/check.mjs.
 // - ro_fix_prompt returns the prompt render/summarize.mjs built from those
@@ -50,7 +50,7 @@ function runCheck(url: string, dir: string, host: string): Promise<string> {
 
 export default definePluginEntry({
   id: "ro",
-  name: "Resolution Optimizer",
+  name: "Sitemaxxing",
   description: "Checks a website on nine screens, for SEO and for AI readability, and builds a fix prompt from what it measured.",
   register(api) {
     api.registerTool({

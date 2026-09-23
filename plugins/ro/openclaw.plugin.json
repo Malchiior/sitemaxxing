@@ -1,6 +1,6 @@
 {
   "id": "ro",
-  "name": "Resolution Optimizer",
+  "name": "Sitemaxxing",
   "contracts": { "tools": ["ro_check", "ro_fix_prompt", "ro_status"] },
   "activation": { "onStartup": true },
   "configSchema": { "type": "object", "additionalProperties": false }
