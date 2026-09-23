@@ -1,7 +1,7 @@
 {
   "id": "ro",
   "name": "Sitemaxxing",
-  "contracts": { "tools": ["ro_check", "ro_fix_prompt", "ro_status", "ro_contact_card"] },
+  "contracts": { "tools": ["ro_check", "ro_check_pages", "ro_fix_prompt", "ro_status", "ro_contact_card"] },
   "activation": { "onStartup": true },
   "configSchema": { "type": "object", "additionalProperties": false }
 }

@@ -46,7 +46,7 @@ const FIX = {
   heavy: i => `The page downloads ${i.evidence?.kb ? (i.evidence.kb / 1024).toFixed(1) + " MB" : "a lot"}. Heaviest files: ${list(i.evidence?.heaviest).join("; ")}. For video on phones, show a poster image and don't preload (preload="none", or load it only above a width). Compress images to WebP or AVIF.`,
   "action-low": i => `${i.title}. On phones, bring the main button into the first screen.`,
   "oversized-images": i => `Images much larger than needed: ${list(i.evidence).join("; ")}. Serve sized versions with srcset and sizes.`,
-  unreachable: () => "The homepage didn't load for a normal visitor. Check the server, DNS and any redirects.",
+  unreachable: () => "The page didn't load for a normal visitor. Check the server, DNS and any redirects.",
   noindex: i => `The page tells search engines not to index it (robots meta "${i.evidence}"). Remove noindex unless this page should stay out of search.`,
   "google-blocked": () => "robots.txt blocks Googlebot from the site. Remove that Disallow rule unless it's intentional.",
   "no-title": () => "Add a <title>: what the business does and its name, under 60 characters, from the site's own wording.",
@@ -60,7 +60,7 @@ const FIX = {
   "no-canonical": () => 'Add <link rel="canonical"> with the page\'s own preferred URL.',
   "no-sitemap": () => "Add /sitemap.xml listing the site's pages, and a Sitemap: line in robots.txt.",
   firewall: i => `The server or firewall turns these crawlers away: ${list(i.evidence).join("; ")}. If the owner wants to appear in AI answers, allow them in the firewall's bot settings.`,
-  thin: () => "The homepage has almost no readable text. Add a real headline that says what the business does, plus a few sentences on who it serves, where, and how to get in touch, using the owner's own information.",
+  thin: () => "The page has almost no readable text. Add a real headline that says what the business does, plus a few sentences on who it serves, where, and how to get in touch, using the owner's own information.",
   "js-only": i => `Most of the text only appears after JavaScript runs (${i.evidence?.share}% visible without it). Render the main content on the server or pre-render the page.`,
   "ai-blocked": i => `robots.txt blocks: ${list(i.evidence).join(", ")}. If the owner wants to appear in AI answers, allow them. (Leave as is if blocking them was a choice.)`,
   "no-schema": () => 'Add JSON-LD structured data (<script type="application/ld+json">): Organization or LocalBusiness with the name, URL, logo, address, phone and social links shown on the site.',
@@ -68,8 +68,10 @@ const FIX = {
   "no-lang": () => 'Add the page language to <html>, e.g. <html lang="en">.',
 };
 
-export function fixPrompt(run) {
-  const host = new URL(run.audit.finalUrl ?? run.url).hostname.replace(/^www\./, "");
+export const SCREENS_CHECKED = "Screens checked: Small Android 360×800, iPhone SE 375×667, iPhone 15 393×852, iPhone Pro Max 430×932, iPad 768×1024 and 1024×768, laptop 1366×768, desktop 1920×1080, ultrawide 2560×1080.";
+
+/** One page's fixes in priority sections (FIX FIRST, THEN, WHEN THERE'S TIME), or a line saying there are none. */
+export function fixSections(run) {
   const all = [...groupScreenIssues(run.audit), ...(run.seo?.issues ?? []).map(i => ({ ...i, screens: [] }))]
     .map(i => i.key === "broken-images" ? { ...i, repairs: run.repairs ?? [] } : i);
   const section = (severity, heading) => {
@@ -82,13 +84,18 @@ export function fixPrompt(run) {
       return `${k + 1}. ${i.title}${where}\nFix: ${(FIX[i.key] ?? (() => "See the evidence above."))(i)}`;
     }).join("\n\n") + "\n\n";
   };
+  return `${section("high", "Fix first")}${section("medium", "Then")}${section("low", "When there's time")}` || "Nothing to fix on this page.\n\n";
+}
+
+export function fixPrompt(run) {
+  const host = new URL(run.audit.finalUrl ?? run.url).hostname.replace(/^www\./, "");
   return `FIX LIST FOR ${host.toUpperCase()}
 
 You're working on the website ${run.audit.finalUrl ?? run.url}. On ${run.date}, an automated check opened the page on 9 screen sizes (360 to 2560 wide) and checked its SEO and how well AI tools can read it. Every item below was measured, not guessed.
 
 Fix them in this codebase. For each one, find the code responsible and make the smallest change that fixes it. Don't change the copy, routes, forms or tracking unless the fix says to. When you're done, check the page at 375px and 1440px wide.
 
-${section("high", "Fix first")}${section("medium", "Then")}${section("low", "When there's time")}Screens checked: Small Android 360×800, iPhone SE 375×667, iPhone 15 393×852, iPhone Pro Max 430×932, iPad 768×1024 and 1024×768, laptop 1366×768, desktop 1920×1080, ultrawide 2560×1080.
+${fixSections(run)}${SCREENS_CHECKED}
 `.replace(/\n{3,}/g, "\n\n");
 }
 
@@ -117,8 +124,16 @@ export function resultMessage(run) {
   } else {
     lines.push(every.length ? "Nothing broken on any screen. A few small things are in the report." : "Nothing to fix on any screen.");
   }
-  lines.push("", "Report card and full PDF below. Reply fix for your coding agent's fix list.");
+  lines.push("", `Report card and full PDF below. Reply fix for your coding agent's fix list${pagesOffer(run.pages)}.`);
   return lines.join("\n");
+}
+
+/** ", or pages to check /about, /services and /contact too": the site's other main pages, found in this page's menu. */
+export function pagesOffer(pages) {
+  if (!pages?.length) return "";
+  const paths = pages.map(p => p.label ?? p.path);
+  const named = paths.length === 1 ? paths[0] : `${paths.slice(0, -1).join(", ")} and ${paths.at(-1)}`;
+  return named.length <= 60 ? `, or pages to check ${named} too` : `, or pages to check ${paths.length} more pages from your menu`;
 }
 
 /** A compact summary for the agent to explain in a text message. */

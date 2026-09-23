@@ -59,7 +59,7 @@ export function shortTitle(issue) {
     case "heavy": return `Heavy page: ${ev?.kb ? (ev.kb / 1024).toFixed(1) + " MB" : "slow to load"}${on}`;
     case "action-low": return `Main button not on the first screen${on}`;
     case "oversized-images": return `Images far bigger than needed${on}`;
-    case "unreachable": return "Homepage didn't load";
+    case "unreachable": return /^The homepage/.test(issue.title ?? "") ? "Homepage didn't load" : "Page didn't load";
     case "noindex": return "Hidden from Google (noindex)";
     case "google-blocked": return "robots.txt blocks Google";
     case "no-title": return "No page title";

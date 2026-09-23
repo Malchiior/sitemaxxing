@@ -5,6 +5,14 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+// Browsers still open, so a check the plugin stops for taking too long
+// (SIGTERM) takes its Chromium down with it instead of leaving it running.
+const live = new Set();
+process.once("SIGTERM", () => {
+  for (const browser of live) browser.close();
+  process.exit(143);
+});
+
 export async function launch() {
   const profile = mkdtempSync(join(tmpdir(), "ro-chrome-"));
   const chrome = spawn("chromium", [
@@ -57,9 +65,12 @@ export async function launch() {
     return result.value;
   };
   const close = () => {
+    live.delete(browser);
     try { ws.close(); } catch { /* already closed */ }
     chrome.kill("SIGKILL");
     try { rmSync(profile, { recursive: true, force: true }); } catch { /* best effort */ }
   };
-  return { send, waitFor, evaluate, close };
+  const browser = { send, waitFor, evaluate, close };
+  live.add(browser);
+  return browser;
 }

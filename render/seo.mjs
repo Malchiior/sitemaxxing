@@ -77,6 +77,12 @@ const PAGE_FACTS = `(() => {
   const imgs = [...document.images].filter(i => i.getBoundingClientRect().width > 40);
   const host = location.hostname;
   const links = [...document.querySelectorAll("a[href]")].map(a => { try { return new URL(a.href); } catch { return null; } }).filter(Boolean);
+  // The menu, in order: links in nav and header first; on a page without
+  // either, every link. pages.mjs picks the site's main pages from these.
+  const menu = [...document.querySelectorAll("nav a[href], header a[href], [role=navigation] a[href]")];
+  // An <a> inside an inline SVG has an animated href object, so read the attribute (pages.mjs resolves it).
+  const navLinks = (menu.length ? menu : [...document.querySelectorAll("a[href]")]).slice(0, 120)
+    .map(a => ({ href: typeof a.href === "string" ? a.href : a.getAttribute("href"), text: (a.innerText || a.getAttribute("aria-label") || "").trim().replace(/\\s+/g, " ").slice(0, 40) }));
   return {
     title: document.title || null,
     description: meta("description"),
@@ -91,6 +97,7 @@ const PAGE_FACTS = `(() => {
     images: imgs.length, missingAlt: imgs.filter(i => !(i.getAttribute("alt") || "").trim()).map(i => (i.currentSrc || i.src).split("/").pop().slice(0, 60)),
     favicon: document.querySelector('link[rel~="icon"]')?.href ?? null,
     internalLinks: new Set(links.filter(u => u.hostname === host).map(u => u.pathname)).size,
+    navLinks,
     renderedText: document.body ? document.body.innerText.replace(/\\s+/g, " ").trim().length : 0,
   };
 })()`;
@@ -127,11 +134,15 @@ export function serpHtml({ host, url, title, description, siteName, favicon }) {
   </body></html>`;
 }
 
+/** Findings about the site as a whole, not one page: reported with the homepage, not again for every page. */
+export const SITE_WIDE = new Set(["google-blocked", "no-sitemap", "firewall", "ai-blocked", "no-llms-txt"]);
+
 export function seoIssues(r) {
   const out = [];
   const add = (severity, area, key, title, evidence) => out.push({ severity, area, key, title, evidence });
   const f = r.page;
-  if (!r.home.ok) add("high", "seo", "unreachable", `The homepage answered ${r.home.status || r.home.error} to a normal visit`, r.home.url);
+  const what = r.scope === "page" ? "The page" : "The homepage";
+  if (!r.home.ok) add("high", "seo", "unreachable", `${what} answered ${r.home.status || r.home.error} to a normal visit`, r.home.url);
   if (/noindex/i.test(f.robotsMeta ?? "")) add("high", "seo", "noindex", "The page tells search engines not to index it", f.robotsMeta);
   if (!r.crawlers.find(c => c.name === "Google").robotsAllowed) add("high", "seo", "google-blocked", "robots.txt blocks Google", null);
   if (!f.title) add("high", "seo", "no-title", "The page has no title", null);
@@ -147,46 +158,57 @@ export function seoIssues(r) {
   const blockedByRobots = r.crawlers.filter(c => c.name !== "Google" && !c.robotsAllowed).map(c => c.name);
   const firewalled = r.crawlers.filter(c => c.firewall).map(c => `${c.name} (${c.status})`);
   if (firewalled.length) add("high", "aeo", "firewall", `Your server or firewall turns away ${firewalled.join(", ")}`, firewalled);
-  if (f.renderedText < 300) add("high", "aeo", "thin", `The homepage has only ${f.renderedText} characters of text, so Google and AI tools have almost nothing to read`, f.h1);
+  if (f.renderedText < 300) add("high", "aeo", "thin", `${what} has only ${f.renderedText} characters of text, so Google and AI tools have almost nothing to read`, f.h1);
   else if (r.noJs.share < 50) add("high", "aeo", "js-only", `AI crawlers that don't run JavaScript see only ${r.noJs.share}% of your text`, r.noJs);
   if (blockedByRobots.length) add("medium", "aeo", "ai-blocked", `robots.txt blocks ${blockedByRobots.join(", ")} (fine if that's on purpose)`, blockedByRobots);
   if (!f.structuredData.length) add("medium", "aeo", "no-schema", "No structured data, so AI and Google have to guess what your business is", null);
   if (!r.llmsTxt.found) add("low", "aeo", "no-llms-txt", "No llms.txt (a short guide to your site for AI tools)", null);
   if (!f.lang) add("low", "seo", "no-lang", "The page doesn't declare its language", null);
   const weight = { high: 3, medium: 2, low: 1 };
-  return out.sort((a, b) => weight[b.severity] - weight[a.severity]);
+  const kept = r.scope === "page" ? out.filter(i => !SITE_WIDE.has(i.key)) : out;
+  return kept.sort((a, b) => weight[b.severity] - weight[a.severity]);
 }
 
-export async function seo(url, outDir) {
+/**
+ * The SEO and AI-readability check of one page. `site`, when given, is the
+ * homepage check's seo.json: its robots.txt, crawler, sitemap and llms.txt
+ * results are reused (they're about the site, not the page) and only findings
+ * about this page are reported.
+ */
+export async function seo(url, outDir, site = null) {
   mkdirSync(outDir, { recursive: true });
   const origin = new URL(url).origin;
-  const r = { url };
+  const r = { url, scope: site ? "page" : "site" };
 
   // A normal visit, then the same page as each crawler, a second apart.
   const home = await get(url);
   r.home = { ok: home.status >= 200 && home.status < 400, status: home.status, url: home.url, error: home.error };
-  const robots = await get(`${origin}/robots.txt`);
-  const robotsTxt = robots.status === 200 && !/<html/i.test(robots.body) ? robots.body : "";
-  r.robots = { found: Boolean(robotsTxt), status: robots.status };
-  r.crawlers = [];
-  for (const c of CRAWLERS) {
-    const rule = robotsAllows(robotsTxt, c.token);
-    const entry = { name: c.name, token: c.token, robotsAllowed: rule.allowed, robotsRule: rule.matched };
-    if (c.ua) {
-      await pause(1000);
-      const res = await get(url, c.ua);
-      entry.status = res.status;
-      entry.firewall = r.home.ok && (res.status === 403 || res.status === 429 || res.status === 503 || res.status === 0 || looksChallenged(res.body));
+  if (site) {
+    Object.assign(r, { robots: site.robots, crawlers: site.crawlers, sitemap: site.sitemap, llmsTxt: site.llmsTxt, siteCheckedAt: site.url });
+  } else {
+    const robots = await get(`${origin}/robots.txt`);
+    const robotsTxt = robots.status === 200 && !/<html/i.test(robots.body) ? robots.body : "";
+    r.robots = { found: Boolean(robotsTxt), status: robots.status };
+    r.crawlers = [];
+    for (const c of CRAWLERS) {
+      const rule = robotsAllows(robotsTxt, c.token);
+      const entry = { name: c.name, token: c.token, robotsAllowed: rule.allowed, robotsRule: rule.matched };
+      if (c.ua) {
+        await pause(1000);
+        const res = await get(url, c.ua);
+        entry.status = res.status;
+        entry.firewall = r.home.ok && (res.status === 403 || res.status === 429 || res.status === 503 || res.status === 0 || looksChallenged(res.body));
+      }
+      r.crawlers.push(entry);
     }
-    r.crawlers.push(entry);
+    const sitemapUrl = robotsTxt.match(/^\s*sitemap:\s*(\S+)/im)?.[1] ?? `${origin}/sitemap.xml`;
+    await pause(500);
+    const sitemap = await get(sitemapUrl);
+    r.sitemap = { url: sitemapUrl, found: sitemap.status === 200 && /<(urlset|sitemapindex)/i.test(sitemap.body), entries: (sitemap.body.match(/<loc>/gi) ?? []).length };
+    await pause(500);
+    const llms = await get(`${origin}/llms.txt`);
+    r.llmsTxt = { found: llms.status === 200 && !/<html/i.test(llms.body) && llms.body.trim().length > 0, bytes: llms.body.length };
   }
-  const sitemapUrl = robotsTxt.match(/^\s*sitemap:\s*(\S+)/im)?.[1] ?? `${origin}/sitemap.xml`;
-  await pause(500);
-  const sitemap = await get(sitemapUrl);
-  r.sitemap = { url: sitemapUrl, found: sitemap.status === 200 && /<(urlset|sitemapindex)/i.test(sitemap.body), entries: (sitemap.body.match(/<loc>/gi) ?? []).length };
-  await pause(500);
-  const llms = await get(`${origin}/llms.txt`);
-  r.llmsTxt = { found: llms.status === 200 && !/<html/i.test(llms.body) && llms.body.trim().length > 0, bytes: llms.body.length };
 
   // The rendered page: what a browser (and Google) sees.
   const browser = await launch();

@@ -3,7 +3,7 @@ import type { renderConfig } from "./config.ts";
 type Config = ReturnType<typeof renderConfig>;
 
 /** Sitemaxxing's tools (plugins/ro). */
-export const RO_TOOLS = ["ro_check", "ro_fix_prompt", "ro_status", "ro_contact_card"];
+export const RO_TOOLS = ["ro_check", "ro_check_pages", "ro_fix_prompt", "ro_status", "ro_contact_card"];
 export const RO_PLUGIN_PATH = "/opt/ro/plugins/ro";
 /**
  * OpenClaw's default output cap for a model with no maxTokens is 8,192, which

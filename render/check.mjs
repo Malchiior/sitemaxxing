@@ -1,5 +1,6 @@
-// One full check of a site: nine screens, the grid, SEO and AI-readability,
-// the fix prompt. The plugin runs this as a child process.
+// One full check of a page: nine screens, the grid, SEO and AI-readability,
+// the report card, the PDF, the fix prompt, and the results text. The plugin
+// runs this as a child process.
 //
 //   node check.mjs <url> <run-dir>     prints the agent summary as JSON
 import { writeFileSync } from "node:fs";
@@ -7,7 +8,9 @@ import { join } from "node:path";
 import { audit } from "./audit.mjs";
 import { renderGrid } from "./grid.mjs";
 import { seo } from "./seo.mjs";
-import { agentSummary, allIssues, fixPrompt, groupScreenIssues, repairedImageUrl, resultMessage } from "./summarize.mjs";
+import { agentSummary, allIssues, fixPrompt, resultMessage } from "./summarize.mjs";
+import { imageRepairs } from "./repairs.mjs";
+import { mainPages } from "./pages.mjs";
 import { renderCard } from "./card.mjs";
 import { renderReport } from "./report.mjs";
 
@@ -21,40 +24,23 @@ if (gate) {
 }
 const grid = await renderGrid(runDir);
 const seoResult = await seo(auditResult.finalUrl ?? url, runDir);
+const repairs = await imageRepairs(auditResult, url);
+// The site's other main pages, from this page's menu, for "check my pages".
+const pages = mainPages(seoResult.page?.navLinks, auditResult.finalUrl ?? url);
 
-// For each broken image, offer a replacement only if it's proven to work:
-// first a same-alt image that loads at another screen size, then the URL
-// with a pasted-in domain removed, if that URL actually returns an image.
-const origin = new URL(auditResult.finalUrl ?? url).origin;
-const loadsAsImage = async candidate => {
-  try {
-    const res = await fetch(candidate, { method: "GET", signal: AbortSignal.timeout(10_000) });
-    return res.ok && /^image\//.test(res.headers.get("content-type") ?? "");
-  } catch { return false; }
-};
-const working = auditResult.screens.flatMap(s => s.measurements.images.working.map(w => ({ ...w, screen: s.label })));
-const repairs = [];
-const seen = new Set();
-for (const issue of groupScreenIssues(auditResult).filter(i => i.key === "broken-images")) {
-  for (const { src, alt } of issue.evidence ?? []) {
-    if (seen.has(src)) continue;
-    seen.add(src);
-    const twin = alt && working.find(w => w.alt.toLowerCase() === alt.toLowerCase());
-    if (twin) { repairs.push(`${src} -> ${twin.src} (the working image with the same alt text, "${alt}")`); continue; }
-    const candidate = repairedImageUrl(src, origin);
-    if (candidate && new URL(candidate).origin === origin && await loadsAsImage(candidate)) repairs.push(`${src} -> ${candidate}`);
-  }
-}
-
-const run = { url, date: new Date().toISOString().slice(0, 10), audit: auditResult, seo: seoResult, repairs };
+const run = { url, date: new Date().toISOString().slice(0, 10), audit: auditResult, seo: seoResult, repairs, pages };
 writeFileSync(join(runDir, "FIX-PROMPT.md"), fixPrompt(run));
 const issues = allIssues(run);
 const card = await renderCard(run, issues, runDir);
 const report = await renderReport(run, issues, runDir);
 const summary = {
+  kind: "page",
   // The results text, built in code: send it word for word.
   message: resultMessage(run),
   ...agentSummary(run),
+  requested: url,
+  date: run.date,
+  pages,
   images: { card, grid, google: join(runDir, "google-preview.png") },
   report,
   fixPrompt: join(runDir, "FIX-PROMPT.md"),

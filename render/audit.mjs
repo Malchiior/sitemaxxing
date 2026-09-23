@@ -79,7 +79,16 @@ async function fullPage(browser, screen, outDir, pageHeight) {
   return files;
 }
 
-export async function audit(url, outDir) {
+/** A small copy of the first screen for the PDF's 9-screen page, where each tile prints about 2.4in wide. */
+const THUMB_WIDTH = 400;
+
+/**
+ * Options: `slices` (default on) captures the whole page on a phone and a
+ * laptop for the PDF; `png` (default on) keeps a lossless first screen per
+ * size. A pages run turns both off: it needs the measurements, the JPEG
+ * first screens and the thumbnails, and stays quick and small.
+ */
+export async function audit(url, outDir, { slices = true, png = true } = {}) {
   mkdirSync(join(outDir, "screens"), { recursive: true });
   const browser = await launch();
   const report = { url, startedAt: new Date().toISOString(), screens: [] };
@@ -106,16 +115,25 @@ export async function audit(url, outDir) {
         await new Promise(r => setTimeout(r, 900));
       })()`);
       if (!report.finalUrl) report.finalUrl = await browser.evaluate("location.href");
-      const shot = await browser.send("Page.captureScreenshot", { format: "png" });
-      const file = join(outDir, "screens", `${screen.id}.png`);
-      writeFileSync(file, Buffer.from(shot.data, "base64"));
+      let file = null;
+      if (png) {
+        const shot = await browser.send("Page.captureScreenshot", { format: "png" });
+        file = join(outDir, "screens", `${screen.id}.png`);
+        writeFileSync(file, Buffer.from(shot.data, "base64"));
+      }
       const jpeg = await browser.send("Page.captureScreenshot", { format: "jpeg", quality: 72 });
       const foldJpeg = join(outDir, "screens", `${screen.id}.jpg`);
       writeFileSync(foldJpeg, Buffer.from(jpeg.data, "base64"));
+      const thumb = await browser.send("Page.captureScreenshot", {
+        format: "jpeg", quality: 55,
+        clip: { x: 0, y: 0, width: screen.width, height: screen.height, scale: Math.min(1, THUMB_WIDTH / screen.width) },
+      });
+      const thumbJpeg = join(outDir, "screens", `${screen.id}-thumb.jpg`);
+      writeFileSync(thumbJpeg, Buffer.from(thumb.data, "base64"));
       const measurements = await browser.evaluate(`(${MEASURE})(${JSON.stringify({ touch: screen.touch, dpr: screen.dpr })})`);
       const issues = issuesFor(screen, measurements);
-      const slices = FULL_PAGE[screen.id] ? await fullPage(browser, screen, outDir, measurements.pageHeight) : [];
-      report.screens.push({ id: screen.id, label: screen.label, width: screen.width, height: screen.height, file, foldJpeg, slices, score: scoreOf(issues), issues, measurements });
+      const sliceFiles = slices && FULL_PAGE[screen.id] ? await fullPage(browser, screen, outDir, measurements.pageHeight) : [];
+      report.screens.push({ id: screen.id, label: screen.label, width: screen.width, height: screen.height, file, foldJpeg, thumbJpeg, slices: sliceFiles, score: scoreOf(issues), issues, measurements });
     }
   } finally {
     browser.close();

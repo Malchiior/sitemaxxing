@@ -1,6 +1,9 @@
 // Sitemaxxing's tools. The rules that matter are here, in code:
 // - ro_check opens public websites only (url-guard), one at a time, capped per
 //   hour, and every number it reports was measured by render/check.mjs.
+// - ro_check_pages checks up to four more pages of the site just checked (found
+//   in its menu by that check, so the same public-site rule holds), under the
+//   same one-at-a-time rule, and counts once against the hourly cap.
 // - ro_fix_prompt returns the prompt render/summarize.mjs built from those
 //   measurements, word for word; the model doesn't write fixes.
 // - Only the owner can send results to another number (plow_start_thread),
@@ -18,10 +21,13 @@ const LATEST = join(WORKSPACE, "ro", "latest");
 const CARD = join(WORKSPACE, "ro", "contact.vcf");
 const CARD_SENT = join(WORKSPACE, "ro", "contact-card-sent");
 const CHECK_SCRIPT = process.env.RO_CHECK_SCRIPT ?? "/opt/ro/render/check.mjs";
+const PAGES_SCRIPT = process.env.RO_PAGES_SCRIPT ?? "/opt/ro/render/check-pages.mjs";
 const CHECK_TIMEOUT_MS = 4 * 60_000;
+const PAGES_TIMEOUT_MS = 12 * 60_000;
 const MAX_PER_HOUR = 12;
 
-let running: string | null = null;
+/** What's running now, and how long to tell the next person to wait. */
+let running: { what: string; wait: string } | null = null;
 const recent: number[] = [];
 
 type Result = { content: { type: "text"; text: string }[]; details: Record<string, unknown>; isError?: boolean };
@@ -34,6 +40,22 @@ function latestRun(): string | null {
   return existsSync(join(dir, "summary.json")) ? dir : null;
 }
 
+const readSummary = (dir: string) => JSON.parse(readFileSync(join(dir, "summary.json"), "utf8"));
+const hostOf = (url: string) => new URL(url).hostname.replace(/^www\./, "");
+const stamp = () => new Date().toISOString().replace(/[-:]/g, "").slice(0, 15);
+
+/** One check at a time, and at most MAX_PER_HOUR an hour: the refusal, or null to go ahead. */
+function refusal(host: string): Result | null {
+  if (running) return fail(`One check at a time. ${running.what} is running now; send ${host} again in ${running.wait}.`);
+  const hourAgo = Date.now() - 3_600_000;
+  while (recent.length && recent[0] < hourAgo) recent.shift();
+  if (recent.length >= MAX_PER_HOUR) {
+    const minutes = Math.max(1, Math.ceil((recent[0] + 3_600_000 - Date.now()) / 60_000));
+    return fail(`That's ${MAX_PER_HOUR} checks this hour, which is the limit. Send it again in ${minutes} minute${minutes === 1 ? "" : "s"} and I'll run it.`);
+  }
+  return null;
+}
+
 /** Why a check failed, in words for the person (messages.md, Failures). */
 function failureText(host: string, stderr: string, timedOut: boolean): string {
   if (/blocked: bot-check/.test(stderr)) return `${host} is behind a bot check (a "verify you are human" page), so I'm seeing that instead of your site. If you can allow it for a few minutes, send the address again.`;
@@ -42,13 +64,35 @@ function failureText(host: string, stderr: string, timedOut: boolean): string {
   return `Couldn't finish checking ${host}. Send it again in a minute.`;
 }
 
-function runCheck(url: string, dir: string, host: string): Promise<string> {
+/** Why a pages run failed: every page skipped (with the reasons), out of time, or something else. Never a loop back to the same failure. */
+function pagesFailureText(host: string, stderr: string, timedOut: boolean): string {
+  const none = /^no page loaded: (.+)$/m.exec(stderr);
+  if (none) return `None of ${host}'s other pages could be checked: ${none[1]}. Text me any page's address and I'll check that one.`;
+  if (timedOut) return `${host}'s other pages took too long to check, so I stopped. Text me one page's address and I'll check that one.`;
+  return `Couldn't finish checking ${host}'s other pages. Reply pages to try again in a minute.`;
+}
+
+function runScript(script: string, args: string[], timeout: number, explain: (stderr: string, timedOut: boolean) => string): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile(process.execPath, [CHECK_SCRIPT, url, dir], { timeout: CHECK_TIMEOUT_MS, maxBuffer: 8 * 1024 * 1024 }, (error, stdout, stderr) => {
-      if (error) reject(new Error(failureText(host, stderr ?? "", Boolean(error.killed))));
+    execFile(process.execPath, [script, ...args], { timeout, maxBuffer: 8 * 1024 * 1024 }, (error, stdout, stderr) => {
+      if (error) reject(new Error(explain(stderr ?? "", Boolean(error.killed))));
       else resolve(stdout);
     });
   });
+}
+
+/** The reply to send, between the lines, then the measured details for follow-up questions. */
+function replyText(summary: Record<string, any>): string {
+  return [
+    "Your reply is below, between the lines. Send it exactly as written: the text word for word, then the two MEDIA lines (the report card image and the full PDF report).",
+    "-----",
+    summary.message,
+    `MEDIA:${summary.images.card}`,
+    `MEDIA:${summary.report}`,
+    "-----",
+    "The measured details, for answering follow-up questions (don't send these):",
+    JSON.stringify({ ...summary, message: undefined }, null, 1),
+  ].join("\n");
 }
 
 export default definePluginEntry({
@@ -58,7 +102,7 @@ export default definePluginEntry({
   register(api) {
     api.registerTool({
       name: "ro_check", label: "Check a website",
-      description: "Open a public website's homepage on 9 screens (small Android to ultrawide), measure layout problems on each, check SEO and how well AI tools can read it, and build the fix prompt. Takes about a minute. Returns the measured results and the two images to send (the 9-screen grid and the Google preview). Only public websites.",
+      description: "Open a public web page (the homepage, or the page sent) on 9 screens (small Android to ultrawide), measure layout problems on each, check SEO and how well AI tools can read it, and build the fix prompt. Takes about a minute. Returns the reply to send: the results text, the report card image and the PDF report. Only public websites.",
       parameters: {
         type: "object", required: ["url"], additionalProperties: false,
         properties: { url: { type: "string", description: "The website address as the person sent it, e.g. sbeoc.com or https://sbeoc.com" } },
@@ -68,32 +112,54 @@ export default definePluginEntry({
         try { url = await checkableUrl(args.url); }
         catch (error) { return fail(error instanceof UrlRefused ? error.message : "Couldn't read that address."); }
         const host = url.hostname.replace(/^www\./, "");
-        if (running) return fail(`One check at a time. ${running} is running now; send ${host} again in about a minute.`);
-        const hourAgo = Date.now() - 3_600_000;
-        while (recent.length && recent[0] < hourAgo) recent.shift();
-        if (recent.length >= MAX_PER_HOUR) {
-          const minutes = Math.max(1, Math.ceil((recent[0] + 3_600_000 - Date.now()) / 60_000));
-          return fail(`That's ${MAX_PER_HOUR} checks this hour, which is the limit. Send it again in ${minutes} minute${minutes === 1 ? "" : "s"} and I'll run it.`);
-        }
-        const dir = join(RUNS, `${new Date().toISOString().replace(/[-:]/g, "").slice(0, 15)}-${host}`);
+        const refused = refusal(host);
+        if (refused) return refused;
+        const dir = join(RUNS, `${stamp()}-${host}`);
         mkdirSync(dir, { recursive: true });
-        running = host;
+        running = { what: host, wait: "about a minute" };
         recent.push(Date.now());
         try {
-          const summary = JSON.parse(await runCheck(url.href, dir, host));
+          const summary = JSON.parse(await runScript(CHECK_SCRIPT, [url.href, dir], CHECK_TIMEOUT_MS, (stderr, timedOut) => failureText(host, stderr, timedOut)));
           writeFileSync(LATEST, dir);
-          return ok([
-            "Your reply is below, between the lines. Send it exactly as written: the text word for word, then the two MEDIA lines (the report card image and the full PDF report).",
-            "-----",
-            summary.message,
-            `MEDIA:${summary.images.card}`,
-            `MEDIA:${summary.report}`,
-            "-----",
-            "The measured details, for answering follow-up questions (don't send these):",
-            JSON.stringify({ ...summary, message: undefined }, null, 1),
-          ].join("\n"), { site: summary.site, dir });
+          return ok(replyText(summary), { site: summary.site, dir });
         } catch (error) {
           return fail(error instanceof Error ? error.message : `Couldn't finish checking ${host}. Send it again in a minute.`);
+        } finally {
+          running = null;
+        }
+      },
+    });
+
+    api.registerTool({
+      name: "ro_check_pages", label: "Check the site's other main pages",
+      description: "After a check, open up to 4 more pages from that site's menu (found by the check) on the same 9 screens, and build one report card, one PDF and one fix list covering every page. Takes about a minute per page. No arguments: it uses the most recent check. Returns the reply to send.",
+      parameters: { type: "object", additionalProperties: false, properties: {} },
+      async execute() {
+        const latest = latestRun();
+        if (!latest) return fail("No check yet. Text me a website address first, and I'll find its pages.");
+        const summary = readSummary(latest);
+        const firstDir: string = summary.kind === "pages" ? summary.firstRun : latest;
+        const host = hostOf(summary.site);
+        if (summary.pages === undefined || !existsSync(join(firstDir, "audit.json"))) {
+          // A run from before pages existed, or whose files are gone.
+          return fail(`That check of ${host} is from before I could find its pages. Text me the address again, then reply pages.`);
+        }
+        const pages: { path: string }[] = summary.pages;
+        if (!pages.length) {
+          return fail(`I didn't find other pages in ${host}'s menu, so there's nothing more to check there. Text me any page's address and I'll check that one.`);
+        }
+        const refused = refusal(host);
+        if (refused) return refused;
+        const dir = join(RUNS, `${stamp()}-${host}-pages`);
+        mkdirSync(dir, { recursive: true });
+        running = { what: `The pages check for ${host}`, wait: "a few minutes" };
+        recent.push(Date.now());
+        try {
+          const result = JSON.parse(await runScript(PAGES_SCRIPT, [firstDir, dir], PAGES_TIMEOUT_MS, (stderr, timedOut) => pagesFailureText(host, stderr, timedOut)));
+          writeFileSync(LATEST, dir);
+          return ok(replyText(result), { site: summary.site, dir, pages: pages.map(p => p.path) });
+        } catch (error) {
+          return fail(error instanceof Error ? error.message : `Couldn't finish checking ${host}'s other pages.`);
         } finally {
           running = null;
         }
