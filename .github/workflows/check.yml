@@ -10,10 +10,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Unit tests (URL guard, texts, pages, re-check, contact card, usage bridge)
+      - name: Unit tests (URL guard, texts, pages, re-check, fix reply, contact card)
         run: |
           node --test tests/*.test.ts tests/*.test.mjs
-          python3 -m unittest discover -s tests -p 'test_*.py'
       - name: Build image (verifies every pinned checksum)
         run: docker build -t sitemaxxing:ci .
       - name: Offline probe (Chromium renders 9 screens; gateway boots with the plugin)

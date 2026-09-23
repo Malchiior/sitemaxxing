@@ -19,7 +19,6 @@ CLIENT=/opt/ro/reporter/agent-index-client.py
 INTERVAL=300
 
 # One persistent home for everything the reporter keeps:
-#   ~/.openclaw/agents   the bridge's export, which agentsview reads
 #   ~/.agentsview        agentsview's own index
 #   ~/.agent-index       the client's install id and report key
 # It must outlive the container: a new install id on every recreate would
@@ -27,6 +26,11 @@ INTERVAL=300
 HOME=/var/lib/plow/.reporter
 export HOME
 mkdir -p "$HOME"
+# Installs from before the client read OpenClaw's store exported the
+# transcripts to ~/.openclaw/agents for agentsview. The client now reads the
+# store itself and adds collectors up, so that export would count everything
+# twice. Nothing reads it any more: remove it.
+rm -rf "$HOME/.openclaw/agents"
 # No Hermes store here. Unset, the client reads agentsview only, which is
 # correct; set to a path without a store, it would refuse to report at all.
 unset HERMES_HOME

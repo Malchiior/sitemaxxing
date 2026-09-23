@@ -114,7 +114,7 @@ The logo finding is a real one: its URL has `https://sbeoc.com/` pasted into the
 | Read-only, polite: one page load per screen, a few GETs, no forms, no clicks | `render/audit.mjs`, `render/seo.mjs` |
 | A check stopped for taking too long takes its browser down with it | `render/cdp.mjs` SIGTERM handler |
 
-Tests: `tests/` (URL guard, texts, pages, re-check, fix reply, contact card, usage bridge), run on every push with the image build and an offline probe that renders nine screens and boots the gateway with the plugin.
+Tests: `tests/` (URL guard, texts, pages, re-check, fix reply, contact card), run on every push with the image build and an offline probe that renders nine screens and boots the gateway with the plugin.
 
 ## What's included
 
