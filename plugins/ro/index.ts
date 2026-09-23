@@ -18,6 +18,7 @@ import { checkableUrl, UrlRefused } from "./url-guard.ts";
 import { ownerChatUid, sendFile, sendText } from "./plow-api.ts";
 import { previousRun } from "./runs.ts";
 import { COMMANDS, fixReply, greeting } from "./replies.ts";
+import { publishReport, withReportLink } from "./report-link.ts";
 
 const WORKSPACE = process.env.RO_WORKSPACE ?? "/var/lib/plow/workspace";
 const RUNS = join(WORKSPACE, "ro", "runs");
@@ -101,6 +102,18 @@ async function ackNow(ctx: Record<string, any> | undefined, logger: any): Promis
   }
 }
 
+/** The report's page on the site, if the site is configured and answers; never fails the check. */
+async function linkFor(summary: Record<string, any>, kind: string, pages: number, logger: any) {
+  try {
+    const link = await publishReport({ host: hostOf(summary.site), kind, pages, summary: summary.message, pdf: summary.report, fix: summary.fixPrompt });
+    if (link) summary.reportUrl = link.url;
+    return link;
+  } catch (error) {
+    logger?.warn?.(`ro: report not published: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  }
+}
+
 /** The reply to send, between the lines, then the measured details for follow-up questions. */
 function replyText(summary: Record<string, any>, acked = true): string {
   return [
@@ -145,6 +158,7 @@ export default definePluginEntry({
         try {
           const summary = JSON.parse(await runScript(CHECK_SCRIPT, [url.href, dir, ...(previous ? [previous] : [])], CHECK_TIMEOUT_MS, (stderr, timedOut) => failureText(host, stderr, timedOut)));
           writeFileSync(LATEST, dir);
+          summary.message = withReportLink(summary.message, await linkFor(summary, "page", 1, api.logger));
           return ok(replyText(summary, acked), { site: summary.site, dir, previous });
         } catch (error) {
           return fail(error instanceof Error ? error.message : `Couldn't finish checking ${host}. Send it again in a minute.`);
@@ -181,6 +195,8 @@ export default definePluginEntry({
         try {
           const result = JSON.parse(await runScript(PAGES_SCRIPT, [firstDir, dir], PAGES_TIMEOUT_MS, (stderr, timedOut) => pagesFailureText(host, stderr, timedOut)));
           writeFileSync(LATEST, dir);
+          const n = (result.checked ?? []).filter((p: { skipped?: string }) => !p.skipped).length;
+          result.message = withReportLink(result.message, await linkFor(result, "pages", n, api.logger));
           return ok(replyText(result), { site: summary.site, dir, pages: pages.map(p => p.path) });
         } catch (error) {
           return fail(error instanceof Error ? error.message : `Couldn't finish checking ${host}'s other pages.`);

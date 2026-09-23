@@ -6,7 +6,11 @@ name: sitemaxxing
 services:
   agent:
     build: .
-    env_file: ./plow-credentials
+    env_file:
+      - ./plow-credentials
+      # Optional: REPORT_URL and REPORT_KEY for the hosted report page.
+      - path: ./.env.report
+        required: false
     volumes:
       - state:/var/lib/plow
     restart: unless-stopped
