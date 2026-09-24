@@ -1,3 +1,4 @@
+import { themePdf } from "./theme.mjs";
 // The full report as a PDF: tap it on a phone and it opens full screen with
 // pinch-zoom; forward it to a coding agent and it can read every page. Built
 // from the run's own files; Chromium prints it. For a pages run, every page
@@ -74,7 +75,7 @@ export function reportHtml(run, issues, dir) {
   const phonePages = [];
   for (let k = 0; k < phone.length; k += 2) phonePages.push(phone.slice(k, k + 2));
   const fix = readFileSync(join(dir, "FIX-PROMPT.md"), "utf8");
-  return `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body>
+  return themePdf(`<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body>
     <div class="page cover"><img src="${src(join(dir, "card.jpg"))}"></div>
     <div class="page flow"><h2>What to fix on ${esc(host)}</h2>${issueRows(issues)}<div class="foot"><span>Sitemaxxing fit check · ${esc(run.date)}</span><span>${esc(run.audit.finalUrl ?? run.url)}</span></div></div>
     <div class="page"><h2>The first screen on 9 screen sizes</h2><div class="grid">${tiles(run.audit.screens)}</div></div>
@@ -93,7 +94,7 @@ export function reportHtml(run, issues, dir) {
     ${laptop.map((f, k) => `<div class="page"><h2>The whole page on a laptop${laptop.length > 1 ? ` (${k + 1} of ${laptop.length})` : ""}</h2>
       <div class="full"><img src="${src(f)}"></div></div>`).join("")}
     <div class="page flow"><h2>Fix list for your coding agent</h2><pre>${esc(fix)}</pre></div>
-  </body></html>`;
+  </body></html>`);
 }
 
 /** A pages run: the card, then for each page its issues and Google facts and its 9 screens, then the fix list for every page. */
@@ -112,11 +113,11 @@ export function pagesReportHtml(pr, dir) {
         Text readable without JavaScript: <b>${p.seo?.noJs?.share ?? "?"}%</b></div></div>
     <div class="page"><h2>${esc(title)}: the first screen on 9 screen sizes</h2><div class="grid">${tiles(p.audit.screens)}</div></div>`;
   }).join("");
-  return `<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body>
+  return themePdf(`<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body>
     <div class="page cover"><img src="${src(join(dir, "card.jpg"))}"></div>
     ${pages}
     <div class="page flow"><h2>Fix list for your coding agent, ${pr.pages.filter(p => p.audit).length} pages</h2><pre>${esc(fix)}</pre></div>
-  </body></html>`;
+  </body></html>`);
 }
 
 async function print(html, dir, name) {
@@ -128,6 +129,7 @@ async function print(html, dir, name) {
     const loaded = browser.waitFor("Page.loadEventFired", 30_000);
     await browser.send("Page.navigate", { url: pathToFileURL(file).href });
     await loaded;
+    await browser.evaluate("Promise.all([document.fonts.ready, ...Array.from(document.images, image => image.decode().catch(() => {}))])");
     const pdf = await browser.send("Page.printToPDF", { printBackground: true, preferCSSPageSize: true, marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0 });
     const out = join(dir, name);
     writeFileSync(out, Buffer.from(pdf.data, "base64"));

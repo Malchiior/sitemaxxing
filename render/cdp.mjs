@@ -36,7 +36,7 @@ export async function guardRequests(browser, { allowFile = false } = {}) {
 
 export async function launch() {
   const profile = mkdtempSync(join(tmpdir(), "ro-chrome-"));
-  const chrome = spawn("chromium", [
+  const chrome = spawn(process.env.CHROMIUM_PATH || "chromium", [
     "--headless=new", "--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage", "--hide-scrollbars",
     "--mute-audio", "--no-first-run", "--disable-extensions", "--remote-debugging-port=0",
     `--user-data-dir=${profile}`, "about:blank",

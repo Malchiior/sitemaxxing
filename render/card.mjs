@@ -1,3 +1,4 @@
+import { themeCard, reportIcon } from "./theme.mjs";
 // The report card: one portrait image (1080×1350) that reads on a phone and
 // shares well. For one page: the site on a laptop, a tablet and a phone, three
 // scores, the top issues, how Google shows it, and whether AI can read it. For
@@ -9,7 +10,7 @@ import { pathToFileURL } from "node:url";
 import { launch } from "./cdp.mjs";
 import { groups } from "./labels.mjs";
 
-const ICON = process.env.RO_ICON ?? "/opt/ro/assets/icon.png";
+const ICON = process.env.RO_ICON ?? reportIcon;
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const tone = score => score >= 90 ? "#4ade80" : score >= 70 ? "#fbbf24" : "#f87171";
 const src = file => pathToFileURL(file).href;
@@ -47,7 +48,7 @@ export function cardHtml(run, issues) {
   }).join("");
   const readable = run.seo?.noJs ? `${run.seo.noJs.share}% readable without JavaScript` : "";
   const schema = page.structuredData?.length ? "structured data ✓" : "no structured data";
-  return `<!doctype html><html><head><meta charset="utf-8"><style>${BASE_CSS}
+  return themeCard(`<!doctype html><html><head><meta charset="utf-8"><style>${BASE_CSS}
     h1 { font-size: ${hostSize(host)}px; }
     .scores { display: flex; gap: 18px; margin-top: 30px; flex: none; }
     .score { flex: 1; background: #1c2645; border-radius: 22px; padding: 18px 20px; text-align: center; }
@@ -82,7 +83,7 @@ export function cardHtml(run, issues) {
       <div class="t">${esc(page.title || host)}</div>
       <div class="d">${page.description ? esc(page.description) : "<i>No description set, so Google picks text from the page.</i>"}</div></div>
     <div class="ai">${aiOk}<span>${esc(readable)}</span><span>${esc(schema)}</span></div>
-  </body></html>`;
+  </body></html>`);
 }
 
 /** The pages card: one row per page (the page checked first, then the others), each with its screens, scores and top two issues. */
@@ -103,7 +104,7 @@ export function pagesCardHtml(pr) {
       </div></div>`;
   }).join("");
   const n = pr.pages.filter(p => p.audit).length;
-  return `<!doctype html><html><head><meta charset="utf-8"><style>${BASE_CSS}
+  return themeCard(`<!doctype html><html><head><meta charset="utf-8"><style>${BASE_CSS}
     h1 { font-size: ${hostSize(pr.host)}px; }
     .rows { display: flex; flex-direction: column; gap: 12px; margin-top: 28px; flex: 1 1 auto; min-height: 0; overflow: hidden; }
     .row { display: flex; gap: 20px; background: #1c2645; border-radius: 20px; padding: 14px 18px; height: 212px; flex: none; overflow: hidden; }
@@ -125,7 +126,7 @@ export function pagesCardHtml(pr) {
   </style></head><body>
     <header><img src="${src(ICON)}"><div><div class="label">SITEMAXXING FIT CHECK · ${n} PAGES</div><h1>${esc(pr.host)}</h1></div></header>
     <div class="rows">${rows}</div>
-  </body></html>`;
+  </body></html>`);
 }
 
 async function shoot(html, dir) {
@@ -138,7 +139,8 @@ async function shoot(html, dir) {
     const loaded = browser.waitFor("Page.loadEventFired", 15_000);
     await browser.send("Page.navigate", { url: pathToFileURL(file).href });
     await loaded;
-    await browser.evaluate("document.fonts.ready");
+    await browser.evaluate("Promise.all([document.fonts.ready, ...Array.from(document.images, image => image.decode().catch(() => {}))])");
+
     const png = await browser.send("Page.captureScreenshot", { format: "png" });
     const jpg = await browser.send("Page.captureScreenshot", { format: "jpeg", quality: 80 });
     writeFileSync(join(dir, "card.png"), Buffer.from(png.data, "base64"));

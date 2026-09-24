@@ -199,3 +199,16 @@ Not for: apps behind a login, flows that need clicks, or anyone wanting a rankin
 ## Privacy
 
 Screenshots and reports live in your own container. Nothing is shared with anyone, including the people who built this.
+
+## Report appearance
+
+Cards and PDFs share the offline aerospace theme in `render/theme.mjs` and the
+bundled background and transparent mascot in `assets/report/`. It applies to
+single-page audits and multi-page checks without changing scores, findings,
+filenames, or attachment delivery. `RO_ICON` still overrides the report mascot.
+For local rendering, `CHROMIUM_PATH` can point to a Chrome/Chromium executable;
+the container continues to use `chromium` by default.
+
+To roll out visual changes, rebuild this repository's Docker image and redeploy
+the texting agent with that image. Deploying the separate website does not update
+the agent. Existing PDFs remain unchanged; newly generated reports use the theme.
