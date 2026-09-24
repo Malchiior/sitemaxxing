@@ -10,7 +10,8 @@ export function fixReply(host: string, file: string, pages = 0): string {
 
 /** The first-contact greeting, with the person's first name when Plow gave one. */
 export function greeting(name?: string): string {
-  const who = (name ?? "").trim().split(/\s+/)[0];
+  const raw = (name ?? "").trim().split(/\s+/)[0];
+  const who = raw ? raw.charAt(0).toUpperCase() + raw.slice(1) : "";
   return `Hi${who ? ` ${who}` : ""}. I am your website maxxing agent. Text me a website address whenever you want a fit check, or text "commands" to see a list of what I can do.`;
 }
 

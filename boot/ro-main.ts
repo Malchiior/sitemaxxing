@@ -5,7 +5,7 @@ import { renderConfig } from "./config.ts";
 import { identityFromApi } from "./identity.ts";
 import { renderPrompt } from "./prompt.ts";
 import { startGateway } from "./process.ts";
-import { withRo } from "./ro-config.ts";
+import { PRODUCT_NAME, withRo } from "./ro-config.ts";
 import { contactCard } from "./ro-card.ts";
 
 // Plow's boot sequence (boot/main.ts in plow-openclaw-agent), reusing its
@@ -55,7 +55,8 @@ try {
   await writeFile("/var/lib/plow/openclaw.json", JSON.stringify(config, null, 2) + "\n", { mode: 0o600 });
   // This line's own contact card, attached to the first reply (prompt/RO.md).
   const photo = await readFile("/opt/ro/assets/contact-photo.jpg").catch(() => undefined);
-  const card = contactCard(config.agents.entries.main.identity.name, (identity.line as { provider_key?: string }).provider_key, photo);
+  // The card is the product, not the line: a one-click install names the agent after its line ("Alder").
+  const card = contactCard(PRODUCT_NAME, (identity.line as { provider_key?: string }).provider_key, photo);
   await mkdir("/var/lib/plow/workspace/ro", { recursive: true });
   if (card) await writeFile("/var/lib/plow/workspace/ro/contact.vcf", card);
   else await rm("/var/lib/plow/workspace/ro/contact.vcf", { force: true });

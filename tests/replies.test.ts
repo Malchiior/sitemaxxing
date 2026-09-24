@@ -23,4 +23,5 @@ test("the greeting uses the first name when there is one, and works without", ()
   assert.equal(greeting("Devin Wits"), 'Hi Devin. I am your website maxxing agent. Text me a website address whenever you want a fit check, or text "commands" to see a list of what I can do.');
   assert.match(greeting(), /^Hi\. I am your website maxxing agent/);
   assert.match(greeting("  "), /^Hi\. I am/);
+  assert.match(greeting("niffler"), /^Hi Niffler\. /, "Plow hands names in lowercase");
 });
