@@ -7,7 +7,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { launch } from "./cdp.mjs";
+import { guardRequests, launch } from "./cdp.mjs";
 
 const IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1";
 const ANDROID = "Mozilla/5.0 (Linux; Android 15; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36";
@@ -97,6 +97,7 @@ export async function audit(url, outDir, { slices = true, png = true } = {}) {
     await browser.send("Runtime.enable");
     await browser.send("Network.enable");
     await browser.send("Network.setCacheDisabled", { cacheDisabled: true });
+    await guardRequests(browser, { allowFile: url.startsWith("file:") }); // file: only for the offline probe's fixture
     for (const screen of SCREENS) {
       await browser.send("Emulation.setDeviceMetricsOverride", { width: screen.width, height: screen.height, deviceScaleFactor: 1, mobile: screen.mobile });
       await browser.send("Emulation.setTouchEmulationEnabled", screen.touch ? { enabled: true, maxTouchPoints: 5 } : { enabled: false });

@@ -2,10 +2,11 @@
 // work: first a same-alt image that loads at another screen size, then the
 // URL with a pasted-in domain removed, if that URL actually returns an image.
 import { groupScreenIssues, repairedImageUrl } from "./summarize.mjs";
+import { safeFetch } from "./guard.mjs";
 
 const loadsAsImage = async candidate => {
   try {
-    const res = await fetch(candidate, { method: "GET", signal: AbortSignal.timeout(10_000) });
+    const res = await safeFetch(candidate, { method: "GET", signal: AbortSignal.timeout(10_000) });
     return res.ok && /^image\//.test(res.headers.get("content-type") ?? "");
   } catch { return false; }
 };

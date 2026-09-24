@@ -12,6 +12,9 @@ for (const name of ["ro-config", "ro-card", "ro-main", "ro-probe"]) {
 await writeFile("/opt/plow/ro-probe", '#!/usr/bin/env node\nimport "./boot/ro-probe.js";\n', { mode: 0o755 });
 
 await mkdir("/opt/ro/plugins/ro/dist", { recursive: true });
+// The address rules, the same file the renderer uses, beside the plugin so
+// OpenClaw's loader finds it.
+await writeFile("/opt/ro/plugins/ro/dist/guard.js", await readFile("/opt/ro/render/guard.mjs", "utf8"));
 for (const name of ["index", "url-guard", "plow-api", "runs", "replies", "report-link"]) {
   await writeFile(`/opt/ro/plugins/ro/dist/${name}.js`, strip(await readFile(`/opt/ro/plugins/ro/${name}.ts`, "utf8")));
 }

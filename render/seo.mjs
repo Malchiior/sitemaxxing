@@ -9,7 +9,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
-import { launch } from "./cdp.mjs";
+import { guardRequests, launch } from "./cdp.mjs";
+import { safeFetch } from "./guard.mjs";
 
 /** Crawlers people ask about, and the token each one matches in robots.txt. */
 export const CRAWLERS = [
@@ -26,7 +27,7 @@ const pause = ms => new Promise(r => setTimeout(r, ms));
 
 async function get(url, ua = BROWSER_UA) {
   try {
-    const res = await fetch(url, { headers: { "User-Agent": ua, Accept: "text/html,*/*" }, redirect: "follow", signal: AbortSignal.timeout(15_000) });
+    const res = await safeFetch(url, { headers: { "User-Agent": ua, Accept: "text/html,*/*" }, signal: AbortSignal.timeout(15_000) });
     const body = await res.text();
     return { status: res.status, url: res.url, body };
   } catch (error) {
@@ -214,6 +215,7 @@ export async function seo(url, outDir, site = null) {
   const browser = await launch();
   try {
     await browser.send("Page.enable");
+    await guardRequests(browser);
     await browser.send("Emulation.setDeviceMetricsOverride", { width: 1366, height: 900, deviceScaleFactor: 1, mobile: false });
     let loaded = browser.waitFor("Page.loadEventFired", 25_000);
     await browser.send("Page.navigate", { url });

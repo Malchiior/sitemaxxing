@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { allowed } from "./guard.mjs";
 
 // Browsers still open, so a check the plugin stops for taking too long
 // (SIGTERM) takes its Chromium down with it instead of leaving it running.
@@ -12,6 +13,23 @@ process.once("SIGTERM", () => {
   for (const browser of live) browser.close();
   process.exit(143);
 });
+
+/**
+ * Let the page reach public addresses only. Every request the browser makes
+ * (the navigation, redirects, images, scripts, fonts) pauses here; its host
+ * must resolve to public addresses or it fails as blocked. data:, blob: and
+ * about: never leave the browser and pass.
+ */
+export async function guardRequests(browser, { allowFile = false } = {}) {
+  await browser.send("Fetch.enable", { patterns: [{ urlPattern: "*", requestStage: "Request" }] });
+  browser.on("Fetch.requestPaused", async ({ requestId, request }) => {
+    try {
+      const ok = /^https?:/i.test(request.url) ? await allowed(request.url) : /^file:/i.test(request.url) ? allowFile : /^(data|blob|about):/i.test(request.url);
+      if (ok) await browser.send("Fetch.continueRequest", { requestId });
+      else await browser.send("Fetch.failRequest", { requestId, errorReason: "BlockedByClient" });
+    } catch { /* the request or the page is already gone */ }
+  });
+}
 
 export async function launch() {
   const profile = mkdtempSync(join(tmpdir(), "ro-chrome-"));
@@ -53,6 +71,8 @@ export async function launch() {
     pending.set(id, { ok, fail });
     ws.send(JSON.stringify({ id, method, params }));
   });
+  /** Call fn with the params of every `method` event. */
+  const on = (method, fn) => { listeners.add(msg => { if (msg.method === method) fn(msg.params); }); };
   const waitFor = (method, ms) => new Promise(ok => {
     const timer = setTimeout(() => { listeners.delete(fn); ok(null); }, ms);
     const fn = msg => { if (msg.method === method) { clearTimeout(timer); listeners.delete(fn); ok(msg.params); } };
@@ -70,7 +90,7 @@ export async function launch() {
     chrome.kill("SIGKILL");
     try { rmSync(profile, { recursive: true, force: true }); } catch { /* best effort */ }
   };
-  const browser = { send, waitFor, evaluate, close };
+  const browser = { send, on, waitFor, evaluate, close };
   live.add(browser);
   return browser;
 }

@@ -8,3 +8,6 @@ data
 dev
 .scratch
 __pycache__
+.scratch/spruce/plow-credentials
+.scratch/**/plow-credentials
+.env.report
