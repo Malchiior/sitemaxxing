@@ -60,6 +60,10 @@ COPY render/ /opt/ro/render/
 COPY assets/contact-photo.jpg assets/icon.png /opt/ro/assets/
 COPY plugins/ro/ /opt/ro/plugins/ro/
 COPY reporter/run.sh /opt/ro/reporter/
+# The hosted report page's address and upload key, baked in so every install
+# (local, cloud, one-click) carries the report link. Optional: the file is
+# gitignored and only present on the publisher's machine; CI builds without it.
+COPY .env.repor[t] /opt/ro/
 RUN set -eu; \
     node /opt/plow/build-ro.ts; \
     chmod 0755 /opt/ro/reporter/run.sh; \

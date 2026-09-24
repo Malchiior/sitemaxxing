@@ -35,6 +35,15 @@ function startReporter() {
   launch();
 }
 
+// Baked-in settings for the hosted report page (see Dockerfile). Environment
+// set on the container wins.
+try {
+  for (const line of (await readFile("/opt/ro/.env.report", "utf8")).split("\n")) {
+    const match = /^([A-Z_]+)=(.*)$/.exec(line.trim());
+    if (match && !process.env[match[1]]) process.env[match[1]] = match[2];
+  }
+} catch { /* not baked in: texts go out without the report link */ }
+
 try {
   const base = process.env.PLOW_API_BASE?.replace(/\/$/, "");
   if (!base) throw new Error("PLOW_API_BASE is required");

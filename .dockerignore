@@ -1,6 +1,7 @@
 .git
 .env
 .env.*
+!.env.report
 plow-credentials
 node_modules
 tests
@@ -10,4 +11,3 @@ dev
 __pycache__
 .scratch/spruce/plow-credentials
 .scratch/**/plow-credentials
-.env.report
