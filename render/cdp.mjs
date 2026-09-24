@@ -21,14 +21,17 @@ process.once("SIGTERM", () => {
  * about: never leave the browser and pass.
  */
 export async function guardRequests(browser, { allowFile = false } = {}) {
+  const opts = { allowFile };
   await browser.send("Fetch.enable", { patterns: [{ urlPattern: "*", requestStage: "Request" }] });
   browser.on("Fetch.requestPaused", async ({ requestId, request }) => {
     try {
-      const ok = /^https?:/i.test(request.url) ? await allowed(request.url) : /^file:/i.test(request.url) ? allowFile : /^(data|blob|about):/i.test(request.url);
+      const ok = /^https?:/i.test(request.url) ? await allowed(request.url) : /^file:/i.test(request.url) ? opts.allowFile : /^(data|blob|about):/i.test(request.url);
       if (ok) await browser.send("Fetch.continueRequest", { requestId });
       else await browser.send("Fetch.failRequest", { requestId, errorReason: "BlockedByClient" });
     } catch { /* the request or the page is already gone */ }
   });
+  /** Let the page load local files from here on: for a page this code wrote itself, never a remote one. */
+  return { allowFile: on => { opts.allowFile = on; } };
 }
 
 export async function launch() {

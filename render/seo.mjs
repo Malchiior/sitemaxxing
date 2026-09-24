@@ -215,7 +215,7 @@ export async function seo(url, outDir, site = null) {
   const browser = await launch();
   try {
     await browser.send("Page.enable");
-    await guardRequests(browser);
+    const guard = await guardRequests(browser);
     await browser.send("Emulation.setDeviceMetricsOverride", { width: 1366, height: 900, deviceScaleFactor: 1, mobile: false });
     let loaded = browser.waitFor("Page.loadEventFired", 25_000);
     await browser.send("Page.navigate", { url });
@@ -231,8 +231,12 @@ export async function seo(url, outDir, site = null) {
     const previewFile = join(outDir, "google-preview.html");
     writeFileSync(previewFile, serpHtml({ host, url: home.url || url, title: r.page.title, description: r.page.description, siteName: r.page.og.title?.split(/[|–-]/)[0]?.trim(), favicon: r.page.favicon }));
     await browser.send("Emulation.setDeviceMetricsOverride", { width: 1200, height: 400, deviceScaleFactor: 1, mobile: false });
+    // The preview is a local file this code just wrote; the guard keeps
+    // checking every remote request it makes (the site's favicon).
+    guard.allowFile(true);
     loaded = browser.waitFor("Page.loadEventFired", 15_000);
-    await browser.send("Page.navigate", { url: pathToFileURL(previewFile).href });
+    const nav = await browser.send("Page.navigate", { url: pathToFileURL(previewFile).href });
+    if (nav.errorText) throw new Error(`preview didn't render: ${nav.errorText}`);
     await loaded;
     r.preview = await browser.evaluate(`(() => {
       const cut = el => el && (el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1);
