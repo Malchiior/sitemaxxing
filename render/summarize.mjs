@@ -33,6 +33,9 @@ const list = items => (items ?? []).map(x => typeof x === "string" ? x : Object.
 
 /** What to change, per problem, for a coding agent that can see the code. */
 const FIX = {
+  "performance-largest-contentful-paint": i => `Mobile lab LCP was ${Math.round(i.evidence.value)} ms (target <=2500 ms). Identify the LCP element with Lighthouse; inspect server response time, render-blocking resources and hero image loading. Fix the measured bottleneck and repeat the same mobile test.`,
+  "performance-cumulative-layout-shift": i => `Mobile lab CLS was ${i.evidence.value} (target <=0.1). Identify shifting elements with Lighthouse; reserve media dimensions and space for dynamically inserted content. Repeat the same test.`,
+  "performance-total-blocking-time": i => `Mobile lab Total Blocking Time was ${Math.round(i.evidence.value)} ms (target <=200 ms). Profile long main-thread tasks, then reduce or defer the responsible JavaScript. This is not a measurement of real-user INP. Repeat the same test.`,
   viewport: () => 'Add <meta name="viewport" content="width=device-width, initial-scale=1"> to the <head> of every page.',
   sideways: i => `These elements run past the right edge of the screen: ${list(i.evidence).join("; ")}. Make them fit: max-width: 100%, let flex rows wrap, let long words break (overflow-wrap: anywhere), and remove fixed widths wider than the screen.`,
   "headline-cut": i => `The headline "${i.evidence}" runs off the screen. Let it wrap and size it with clamp() so it fits at 360px wide.`,
@@ -50,16 +53,16 @@ const FIX = {
   noindex: i => `The page tells search engines not to index it (robots meta "${i.evidence}"). Remove noindex unless this page should stay out of search.`,
   "google-blocked": () => "robots.txt blocks Googlebot from the site. Remove that Disallow rule unless it's intentional.",
   "no-title": () => "Add a <title>: what the business does and its name, under 60 characters, from the site's own wording.",
-  "title-cut": i => `Google cuts the title off: "${i.evidence}". Shorten it to under 60 characters, keeping the most important words first.`,
+  "title-cut": i => `The simulated Google preview cuts the title off: "${i.evidence}". Shorten it to under 60 characters, keeping the most important words first.`,
   "no-description": () => 'Add <meta name="description"> of 140-155 characters, using the site\'s own wording about what it does, for whom and where.',
-  "description-cut": i => `Google cuts the description off: "${i.evidence}". Shorten it to under 155 characters.`,
+  "description-cut": i => `The simulated Google preview cuts the description off: "${i.evidence}". Shorten it to under 155 characters.`,
   "no-h1": () => "Add one <h1> that says what the business does (not just its name or \"Home\").",
   "many-h1": i => `There are several <h1> headlines: ${list(i.evidence).join(" | ")}. Keep one; make the others <h2>.`,
-  "alt-text": i => `Images without alt text: ${list(i.evidence).join("; ")}. Describe each in a few words (what it shows).`,
+  "alt-text": i => `Images without alt text: ${list(i.evidence).join("; ")}. Describe informative images; use alt="" for decorative images. Do not add descriptions to decorative images.`,
   "no-share-image": () => 'Add <meta property="og:image"> with a 1200×630 image so shared links show a picture.',
   "no-canonical": () => 'Add <link rel="canonical"> with the page\'s own preferred URL.',
   "no-sitemap": () => "Add /sitemap.xml listing the site's pages, and a Sitemap: line in robots.txt.",
-  firewall: i => `The server or firewall turns these crawlers away: ${list(i.evidence).join("; ")}. If the owner wants to appear in AI answers, allow them in the firewall's bot settings.`,
+  firewall: i => `Requests using these crawler user-agents failed from our server: ${list(i.evidence).join("; ")}. Check server logs and bot settings before changing access. This probe does not prove real crawlers are blocked, and access does not guarantee AI citations.`,
   thin: () => "The page has almost no readable text. Add a real headline that says what the business does, plus a few sentences on who it serves, where, and how to get in touch, using the owner's own information.",
   "js-only": i => `Most of the text only appears after JavaScript runs (${i.evidence?.share}% visible without it). Render the main content on the server or pre-render the page.`,
   "ai-blocked": i => `robots.txt blocks: ${list(i.evidence).join(", ")}. If the owner wants to appear in AI answers, allow them. (Leave as is if blocking them was a choice.)`,
@@ -151,7 +154,9 @@ export function agentSummary(run) {
     screenIssues: groupScreenIssues(run.audit).map(i => ({ severity: i.severity, title: i.title, screens: i.screens.length === 9 ? "all 9" : i.screens })),
     seoAndAi: (run.seo?.issues ?? []).map(i => ({ severity: i.severity, area: i.area, title: i.title })),
     google: { title: run.seo?.page?.title, description: run.seo?.page?.description },
-    aiCrawlers: (run.seo?.crawlers ?? []).map(c => `${c.name}: ${c.robotsAllowed ? "allowed" : "blocked by robots.txt"}${c.firewall ? `, turned away by the server (${c.status})` : ""}`),
+    performance: run.seo?.performance ?? null,
+    crawlerNote: "User-agent probes from our server; not verified crawler visits or AI citations.",
+    aiCrawlers: (run.seo?.crawlers ?? []).map(c => `${c.name}: ${c.robotsAllowed ? "allowed" : "blocked by robots.txt"}${c.status === undefined ? ", not probed" : `, user-agent probe HTTP ${c.status || "unavailable"}`}`),
     readableWithoutJavaScript: run.seo?.noJs ? `${run.seo.noJs.share}%` : null,
     repairsChecked: run.repairs ?? [],
   };
@@ -170,7 +175,10 @@ const brokenImages = run => {
  * named one by one ("the Logo image"), and fixing one of two is progress.
  */
 export function diffRuns(previous, current) {
-  const before = allIssues(previous), after = allIssues(current);
+  const comparable = previous.seo?.performance?.status === "ok" && current.seo?.performance?.status === "ok";
+  const eligible = i => i.area !== "performance" || (comparable &&
+    [previous, current].every(run => run.seo.performance.metrics.some(m => `performance-${m.id}` === i.key)));
+  const before = allIssues(previous).filter(eligible), after = allIssues(current).filter(eligible);
   const was = new Set(before.map(i => i.key)), is = new Set(after.map(i => i.key));
   const seoKeys = run => (run.seo?.issues ?? []).map(i => i.key).sort().join(",");
   const d = {

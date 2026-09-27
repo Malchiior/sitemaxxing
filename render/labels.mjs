@@ -67,16 +67,16 @@ export function shortTitle(issue) {
     case "noindex": return "Hidden from Google (noindex)";
     case "google-blocked": return "robots.txt blocks Google";
     case "no-title": return "No page title";
-    case "title-cut": return "Google cuts off your title";
+    case "title-cut": return "Title cut in Google preview";
     case "no-description": return "No Google description";
-    case "description-cut": return "Google cuts off your description";
+    case "description-cut": return "Description cut in Google preview";
     case "no-h1": return "No main headline";
     case "many-h1": return "Several main headlines";
     case "alt-text": return `${Array.isArray(ev) ? n(ev.length, "image") : "Images"} missing alt text`;
     case "no-share-image": return "No image when shared on social";
     case "no-canonical": return "No canonical link";
     case "no-sitemap": return "No sitemap";
-    case "firewall": return "Firewall turns away AI crawlers";
+    case "firewall": return "Crawler user-agent probes failed";
     case "thin": return "Almost no text on the page";
     case "js-only": return "AI can't see most of your text";
     case "ai-blocked": return "AI crawlers blocked in robots.txt";
@@ -122,7 +122,7 @@ export function diffName(issue) {
     case "no-share-image": return "the missing share image";
     case "no-canonical": return "the missing canonical link";
     case "no-sitemap": return "the missing sitemap";
-    case "firewall": return "the firewall turning away AI crawlers";
+    case "firewall": return "failed crawler user-agent probes";
     case "thin": return "the near-empty page";
     case "js-only": return "the text AI can't see";
     case "ai-blocked": return "AI crawlers blocked in robots.txt";

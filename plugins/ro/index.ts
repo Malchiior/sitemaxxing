@@ -10,6 +10,9 @@
 //   measurements, word for word; the model doesn't write fixes.
 // - Only the owner can send results to another number (plow_start_thread),
 //   recognised by the host, not by name.
+import { toolAccess } from "./access.ts";
+import { randomUUID } from "node:crypto";
+import { conversationPaths, latestRun, saveLatest, ownsRun } from "./scope.ts";
 import { execFile } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -21,8 +24,6 @@ import { COMMANDS, fixReply, greeting } from "./replies.ts";
 import { publishReport, withReportLink } from "./report-link.ts";
 
 const WORKSPACE = process.env.RO_WORKSPACE ?? "/var/lib/plow/workspace";
-const RUNS = join(WORKSPACE, "ro", "runs");
-const LATEST = join(WORKSPACE, "ro", "latest");
 const CARD = join(WORKSPACE, "ro", "contact.vcf");
 const CARD_SENT = join(WORKSPACE, "ro", "contact-card-sent");
 const CHECK_SCRIPT = process.env.RO_CHECK_SCRIPT ?? "/opt/ro/render/check.mjs";
@@ -38,12 +39,6 @@ const recent: number[] = [];
 type Result = { content: { type: "text"; text: string }[]; details: Record<string, unknown>; isError?: boolean };
 const ok = (text: string, details: Record<string, unknown> = {}): Result => ({ content: [{ type: "text", text }], details });
 const fail = (text: string): Result => ({ isError: true, content: [{ type: "text", text }], details: {} });
-
-function latestRun(): string | null {
-  if (!existsSync(LATEST)) return null;
-  const dir = readFileSync(LATEST, "utf8").trim();
-  return existsSync(join(dir, "summary.json")) ? dir : null;
-}
 
 const readSummary = (dir: string) => JSON.parse(readFileSync(join(dir, "summary.json"), "utf8"));
 const hostOf = (url: string) => new URL(url).hostname.replace(/^www\./, "");
@@ -87,14 +82,10 @@ function runScript(script: string, args: string[], timeout: number, explain: (st
 }
 
 /** Send the "On it" line to the conversation that asked, by code. True when it went out. */
-async function ackNow(ctx: Record<string, any> | undefined, logger: any): Promise<boolean> {
+async function ackNow(ctx: Record<string, any>, logger: any): Promise<boolean> {
   try {
-    const keys = Object.keys(ctx ?? {});
-    logger?.info?.(`ro: tool ctx keys=${keys.join(",")} conversation=${JSON.stringify(ctx?.conversation ?? null)}`);
-    let chat: string | null = ctx?.conversation?.id ?? ctx?.chatId ?? ctx?.reply?.to ?? null;
-    if (!chat && ctx?.requester?.senderIsOwner !== false) chat = await ownerChatUid();
-    if (!chat) return false;
-    await sendText(chat, "On it. About a minute.");
+    if (!ctx.delivery?.send) return false;
+    await ctx.delivery.send({ text: "On it. About a minute." });
     return true;
   } catch (error) {
     logger?.warn?.(`ro: ack not sent: ${error instanceof Error ? error.message : String(error)}`);
@@ -132,14 +123,17 @@ export default definePluginEntry({
   name: "Sitemaxxing",
   description: "Checks a website on nine screens, for SEO and for AI readability, and builds a fix prompt from what it measured.",
   register(api) {
-    api.registerTool({
+    api.registerTool((ctx) => {
+      const scope = conversationPaths(WORKSPACE, ctx);
+      return {
       name: "ro_check", label: "Check a website",
       description: "Open a public web page (the homepage, or the page sent) on 9 screens (small Android to ultrawide), measure layout problems on each, check SEO and how well AI tools can read it, and build the fix prompt. Takes about a minute. Returns the reply to send: the results text, the report card image and the PDF report. Only public websites.",
       parameters: {
         type: "object", required: ["url"], additionalProperties: false,
         properties: { url: { type: "string", description: "The website address as the person sent it, e.g. sbeoc.com or https://sbeoc.com" } },
       },
-      async execute(_id: string, args: { url: string }, ctx?: Record<string, any>) {
+      async execute(_id: string, args: { url: string }) {
+        if (!scope) return fail("Cannot identify this conversation safely. Please start a new conversation and try again.");
         let url: URL;
         try { url = await checkableUrl(args.url); }
         catch (error) { return fail(error instanceof UrlRefused ? error.message : "Couldn't read that address."); }
@@ -148,17 +142,17 @@ export default definePluginEntry({
         if (refused) return refused;
         // "On it. About a minute." goes out from here, by code, the moment the
         // check starts: the same words every time, and never forgotten.
-        const acked = await ackNow(ctx, api.logger);
-        // Checked before? Then the results say what changed since (render/check.mjs).
-        const earlier = earlierRuns(RUNS, url.href);
-        const previous = earlier[0] ?? null;
-        const dir = join(RUNS, `${stamp()}-${host}`);
-        mkdirSync(dir, { recursive: true });
-        running = { what: host, wait: "about a minute" };
-        recent.push(Date.now());
+        running = { what: "A website check", wait: "about a minute" };
         try {
+          const acked = await ackNow(ctx, api.logger);
+          // Compare only this conversation's earlier checks.
+          const earlier = earlierRuns(scope.runs, url.href);
+          const previous = earlier[0] ?? null;
+          const dir = join(scope.runs, `${stamp()}-${host}-${randomUUID()}`);
+          mkdirSync(dir, { recursive: true });
+          recent.push(Date.now());
           const summary = JSON.parse(await runScript(CHECK_SCRIPT, [url.href, dir, previous ?? "", String(earlier.length + 1)], CHECK_TIMEOUT_MS, (stderr, timedOut) => failureText(host, stderr, timedOut)));
-          writeFileSync(LATEST, dir);
+          saveLatest(scope, dir);
           summary.message = withReportLink(summary.message, await linkFor(summary, "page", 1, api.logger));
           return ok(replyText(summary, acked), { site: summary.site, dir, previous });
         } catch (error) {
@@ -167,17 +161,22 @@ export default definePluginEntry({
           running = null;
         }
       },
-    });
+      };
+    }, { name: "ro_check" });
 
-    api.registerTool({
+    api.registerTool((ctx) => {
+      const scope = conversationPaths(WORKSPACE, ctx);
+      return {
       name: "ro_check_pages", label: "Check the site's other main pages",
       description: "After a check, open up to 4 more pages from that site's menu (found by the check) on the same 9 screens, and build one report card, one PDF and one fix list covering every page. Takes about a minute per page. No arguments: it uses the most recent check. Returns the reply to send.",
       parameters: { type: "object", additionalProperties: false, properties: {} },
       async execute() {
-        const latest = latestRun();
+        if (!scope) return fail("Cannot identify this conversation safely.");
+        const latest = latestRun(scope);
         if (!latest) return fail("No check yet. Text me a website address first, and I'll find its pages.");
         const summary = readSummary(latest);
         const firstDir: string = summary.kind === "pages" ? summary.firstRun : latest;
+        if (!ownsRun(scope, firstDir)) return fail("That report is unavailable in this conversation. Text me the address again.");
         const host = hostOf(summary.site);
         if (summary.pages === undefined || !existsSync(join(firstDir, "audit.json"))) {
           // A run from before pages existed, or whose files are gone.
@@ -189,13 +188,13 @@ export default definePluginEntry({
         }
         const refused = refusal(host);
         if (refused) return refused;
-        const dir = join(RUNS, `${stamp()}-${host}-pages`);
+        const dir = join(scope.runs, `${stamp()}-${host}-pages-${randomUUID()}`);
         mkdirSync(dir, { recursive: true });
-        running = { what: `The pages check for ${host}`, wait: "a few minutes" };
+        running = { what: "A pages check", wait: "a few minutes" };
         recent.push(Date.now());
         try {
           const result = JSON.parse(await runScript(PAGES_SCRIPT, [firstDir, dir], PAGES_TIMEOUT_MS, (stderr, timedOut) => pagesFailureText(host, stderr, timedOut)));
-          writeFileSync(LATEST, dir);
+          saveLatest(scope, dir);
           const n = (result.checked ?? []).filter((p: { skipped?: string }) => !p.skipped).length;
           result.message = withReportLink(result.message, await linkFor(result, "pages", n, api.logger));
           return ok(replyText(result), { site: summary.site, dir, pages: pages.map(p => p.path) });
@@ -205,14 +204,18 @@ export default definePluginEntry({
           running = null;
         }
       },
-    });
+      };
+    }, { name: "ro_check_pages" });
 
-    api.registerTool({
+    api.registerTool((ctx) => {
+      const scope = conversationPaths(WORKSPACE, ctx);
+      return {
       name: "ro_fix_prompt", label: "The fix prompt for the owner's coding agent",
       description: "Return the reply that carries the fix prompt for the most recent check, built from its measurements: an intro line, the fix list word for word (never edited or summarized, so the owner can paste it into Claude Code, Codex, Cursor or any coding agent), a closing line, and the list as a file.",
       parameters: { type: "object", additionalProperties: false, properties: {} },
       async execute() {
-        const dir = latestRun();
+        if (!scope) return fail("Cannot identify this conversation safely.");
+        const dir = latestRun(scope);
         if (!dir) return fail("Nothing to fix yet. Text me a website address first.");
         const summary = readSummary(dir);
         const file = join(dir, "FIX-PROMPT.md");
@@ -224,37 +227,51 @@ export default definePluginEntry({
           "-----",
         ].join("\n"), { file });
       },
-    });
+      };
+    }, { name: "ro_fix_prompt" });
 
-    api.registerTool({
+    api.registerTool((ctx) => {
+      const scope = conversationPaths(WORKSPACE, ctx);
+      return {
       name: "ro_greeting", label: "The first-contact greeting",
       description: "The greeting for someone's first message, written ahead of time. Call it on first contact and send what it returns word for word.",
       parameters: { type: "object", additionalProperties: false, properties: { name: { type: "string", description: "The person's first name from the conversation facts, if known" } } },
       async execute(_id: string, args: { name?: string }) { return ok(greeting(args?.name)); },
-    });
+      };
+    }, { name: "ro_greeting" });
 
-    api.registerTool({
+    api.registerTool((ctx) => {
+      const scope = conversationPaths(WORKSPACE, ctx);
+      return {
       name: "ro_commands", label: "What Sitemaxxing can do",
       description: "The list of things the person can text, written ahead of time. Send it word for word when they ask what you can do or text \"commands\".",
       parameters: { type: "object", additionalProperties: false, properties: {} },
       async execute() { return ok(COMMANDS); },
-    });
+      };
+    }, { name: "ro_commands" });
 
-    api.registerTool({
+    api.registerTool((ctx) => {
+      const scope = conversationPaths(WORKSPACE, ctx);
+      return {
       name: "ro_status", label: "The latest check",
       description: "The most recent check's results, from its files.",
       parameters: { type: "object", additionalProperties: false, properties: {} },
       async execute() {
-        const dir = latestRun();
+        if (!scope) return fail("Cannot identify this conversation safely.");
+        const dir = latestRun(scope);
         return dir ? ok(readFileSync(join(dir, "summary.json"), "utf8")) : ok("No check yet.");
       },
-    });
+      };
+    }, { name: "ro_status" });
 
-    api.registerTool({
+    api.registerTool((ctx) => {
+      const scope = conversationPaths(WORKSPACE, ctx);
+      return {
       name: "ro_contact_card", label: "Send your contact card",
       description: "On first contact with the owner, send your contact card so they can save you with one tap. Sends at most once; calling it again does nothing.",
       parameters: { type: "object", additionalProperties: false, properties: {} },
       async execute() {
+        if (ctx.senderIsOwner !== true) return fail("Only the owner can request the contact card.");
         if (!existsSync(CARD)) return ok("No contact card for this line; nothing sent.");
         try {
           const chat = await ownerChatUid();
@@ -269,18 +286,13 @@ export default definePluginEntry({
           return ok("Contact card couldn't be sent this time; carry on without mentioning it.");
         }
       },
-    });
+      };
+    }, { name: "ro_contact_card" });
 
     api.on("before_tool_call", async (event, ctx) => {
-      if (event.toolName !== "plow_start_thread") return;
-      // Starting a thread with a new number sends the report outside this
-      // conversation. The owner decides that, recognised by the host.
-      const requester = ctx.requester;
-      api.logger?.info?.(`ro: plow_start_thread requester known=${Boolean(requester?.senderId)} owner=${Boolean(requester?.senderIsOwner)}`);
-      if (requester?.senderId && !requester.senderIsOwner) {
-        return { block: true, blockReason: "Only the owner can send results to another number." };
-      }
-      return;
+      // Enforce at the host hook, not in a prompt: unknown identity gets guest
+      // privileges. MEDIA attachments returned by ro tools are not tool calls.
+      return toolAccess(event.toolName, ctx.requester);
     });
   },
 });

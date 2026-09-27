@@ -10,13 +10,14 @@ export const brand = `<div class="report-brand"><span>SITEMAXXING</span><img alt
 export const brandFooter = `<div class="brand-footer"><span>SITEMAXXING</span><span>BETTER WEBSITES FOR A BRIGHTER TOMORROW</span></div>`;
 
 export const CARD_THEME = `
+  :root { --brand-accent: #ff866c; --brand-tracking: .3em; }
   body { background: linear-gradient(180deg, #040e1940, #040e1999 48%, #040e19f5 78%), url("${background}") center top / cover; color: #f3f6fc; padding: 38px 48px 35px; }
   .report-brand { display: flex; align-items: center; gap: 18px; margin-bottom: 24px; height: 46px; flex: none; }
-  .report-brand span { font-size: 27px; letter-spacing: .3em; font-weight: 500; }
+  .report-brand span { font-size: 27px; letter-spacing: var(--brand-tracking); font-weight: 500; }
   .report-brand img { width: 50px; height: 46px; object-fit: contain; }
   header { gap: 0; }
   header > img { display: none; }
-  .label { color: #ff866c; font-size: 19px; letter-spacing: .17em; margin-bottom: 8px; }
+  .label { color: var(--brand-accent); font-size: 19px; letter-spacing: .17em; margin-bottom: 8px; }
   h1 { color: #f3f6fc; letter-spacing: -.025em; }
   .scores { margin-top: 24px; gap: 16px; }
   .score { background: linear-gradient(125deg,#142940dd,#17293cc9); border: 1px solid #6d90b49c; box-shadow: inset 0 1px 2px #c8e3ff26; border-radius: 17px; padding: 18px; }

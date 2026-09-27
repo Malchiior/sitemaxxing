@@ -212,3 +212,35 @@ the container continues to use `chromium` by default.
 To roll out visual changes, rebuild this repository's Docker image and redeploy
 the texting agent with that image. Deploying the separate website does not update
 the agent. Existing PDFs remain unchanged; newly generated reports use the theme.
+
+### Performance checks
+
+Each checked public URL is submitted to Google's PageSpeed Insights API for one
+mobile Lighthouse lab run, in parallel with the SEO check (25-second timeout).
+The PDF records its separate performance score, LCP, CLS and Total Blocking Time;
+measured problems feed into the coding-agent fix prompt. These are simulated lab
+results, not real-user Core Web Vitals, INP, or Google rankings. Nine-screen layout
+scores remain separate. Failed/quota-limited checks are shown as unavailable and
+are excluded from performance fix comparisons.
+
+Set `PAGESPEED_API_KEY` in the agent environment for automated quota. Without a
+key Google may return HTTP 429. Set `SITEMAXXING_PAGESPEED=0` to disable external
+performance checks. This sends the checked URL to Google; the API key is sent in
+a header and is not saved in reports.
+
+Crawler checks use crawler user-agent strings from the audit server. They do not
+verify access from actual crawler IPs or whether AI answers cite the website.
+Intentionally empty image alt attributes are accepted; semantic correctness still
+requires human review.
+
+### Multiplayer and rechecks
+
+Direct conversations keep separate report histories; people in the same group
+share that group's report. Unknown conversation identity fails closed. Guests
+can chat and use website-check/report tools; administrative tools are owner-only.
+Legacy unscoped reports are not reused automatically. See
+[the multiplayer test checklist](docs/multiplayer-isolation.md).
+
+Recheck PDFs include paired before/after captures at matching screen sizes,
+alongside measured fixed/still/new findings. A visual change alone is not labeled
+a verified repair. Missing older captures are skipped.
