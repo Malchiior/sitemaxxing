@@ -60,3 +60,22 @@ After the new release is running, use real participating testers:
 5. Confirm report links, attachments, unavailable-performance wording, and usage reporting on the released image.
 
 Automated isolation tests are necessary but do not substitute for this live multiplayer acceptance test. Do not fabricate the user confirmations or real-user test results.
+
+
+## Release result — September 27, 22:20 UTC
+
+Promoted and verified in Plow and the Index:
+`ghcr.io/malchiior/sitemaxxing@sha256:e6d0d73041f899483ee04baaba4d996905c9eb612905d33e7880adf3cd63299d`.
+New installs use this image; existing running agents remain unchanged.
+
+Source: PR #4, implementation commit b5d4fac (the subsequent documentation-only
+commit removes one trailing blank line without changing behavior).
+59 local tests passed, one skipped (includes five existing local promo tests).
+The final image passed Docker build and RO_PROBE_OK with network disabled.
+Two real local audits generated a nine-screen report and matching recheck PDF;
+before/after rendering was visually checked. No test traffic was sent to users
+or manufactured for the leaderboard.
+
+Outstanding: real two-person/group messaging acceptance, a supported update path
+for existing agents, personal eligibility/registration confirmation, Google
+PageSpeed quota, and credentials/budget approval for a v0 redesign pilot.

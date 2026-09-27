@@ -43,4 +43,3 @@ export function createMediaPolicy(workspace: string) {
   }
   return { bind, turn, guard };
 }
-
