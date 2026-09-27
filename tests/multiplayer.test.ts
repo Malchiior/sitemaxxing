@@ -17,7 +17,7 @@ const { default: plugin } = await import("../plugins/ro/index.ts");
 hook.deregister();
 const factories: any[] = [];
 let before: any;
-plugin.register({ registerTool: (f: any) => factories.push(f), on: (_n: string, fn: any) => { before = fn; }, logger: {} } as any);
+plugin.register({ registerTool: (f: any) => factories.push(f), on: (_n: string, fn: any) => { if (_n === "before_tool_call") before = fn; }, logger: {} } as any);
 const context = (id: string) => ({ sessionId: id, sessionKey: `agent:main:plow:direct:${id}`, agentId: "main" });
 const tools = (ctx: any) => Object.fromEntries(factories.map(f => { const t = f(ctx); return [t.name, t]; }));
 function fixture(id: string, site: string) {

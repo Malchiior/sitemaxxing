@@ -10,6 +10,7 @@
 //   measurements, word for word; the model doesn't write fixes.
 // - Only the owner can send results to another number (plow_start_thread),
 //   recognised by the host, not by name.
+import { createMediaPolicy } from "./media-policy.ts";
 import { toolAccess } from "./access.ts";
 import { randomUUID } from "node:crypto";
 import { conversationPaths, latestRun, saveLatest, ownsRun } from "./scope.ts";
@@ -123,7 +124,9 @@ export default definePluginEntry({
   name: "Sitemaxxing",
   description: "Checks a website on nine screens, for SEO and for AI readability, and builds a fix prompt from what it measured.",
   register(api) {
+    const mediaPolicy = createMediaPolicy(WORKSPACE);
     api.registerTool((ctx) => {
+      mediaPolicy.bind(ctx);
       const scope = conversationPaths(WORKSPACE, ctx);
       return {
       name: "ro_check", label: "Check a website",
@@ -165,6 +168,7 @@ export default definePluginEntry({
     }, { name: "ro_check" });
 
     api.registerTool((ctx) => {
+      mediaPolicy.bind(ctx);
       const scope = conversationPaths(WORKSPACE, ctx);
       return {
       name: "ro_check_pages", label: "Check the site's other main pages",
@@ -208,6 +212,7 @@ export default definePluginEntry({
     }, { name: "ro_check_pages" });
 
     api.registerTool((ctx) => {
+      mediaPolicy.bind(ctx);
       const scope = conversationPaths(WORKSPACE, ctx);
       return {
       name: "ro_fix_prompt", label: "The fix prompt for the owner's coding agent",
@@ -231,6 +236,7 @@ export default definePluginEntry({
     }, { name: "ro_fix_prompt" });
 
     api.registerTool((ctx) => {
+      mediaPolicy.bind(ctx);
       const scope = conversationPaths(WORKSPACE, ctx);
       return {
       name: "ro_greeting", label: "The first-contact greeting",
@@ -241,6 +247,7 @@ export default definePluginEntry({
     }, { name: "ro_greeting" });
 
     api.registerTool((ctx) => {
+      mediaPolicy.bind(ctx);
       const scope = conversationPaths(WORKSPACE, ctx);
       return {
       name: "ro_commands", label: "What Sitemaxxing can do",
@@ -251,6 +258,7 @@ export default definePluginEntry({
     }, { name: "ro_commands" });
 
     api.registerTool((ctx) => {
+      mediaPolicy.bind(ctx);
       const scope = conversationPaths(WORKSPACE, ctx);
       return {
       name: "ro_status", label: "The latest check",
@@ -265,6 +273,7 @@ export default definePluginEntry({
     }, { name: "ro_status" });
 
     api.registerTool((ctx) => {
+      mediaPolicy.bind(ctx);
       const scope = conversationPaths(WORKSPACE, ctx);
       return {
       name: "ro_contact_card", label: "Send your contact card",
@@ -292,7 +301,12 @@ export default definePluginEntry({
     api.on("before_tool_call", async (event, ctx) => {
       // Enforce at the host hook, not in a prompt: unknown identity gets guest
       // privileges. MEDIA attachments returned by ro tools are not tool calls.
+      mediaPolicy.turn(ctx, Boolean(ctx.requester?.senderId) && ctx.requester?.senderIsOwner === true);
       return toolAccess(event.toolName, ctx.requester);
     });
+    api.on("inbound_claim", (event, ctx) => {
+      mediaPolicy.turn({ ...ctx, runId: event.runId ?? ctx.runId, sessionKey: event.sessionKey ?? ctx.sessionKey }, Boolean(event.senderId) && event.senderIsOwner === true);
+    });
+    api.on("reply_payload_sending", (event, ctx) => mediaPolicy.guard(event, ctx));
   },
 });

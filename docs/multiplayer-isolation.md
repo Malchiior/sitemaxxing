@@ -33,3 +33,19 @@ in separate real chats, audit different sites, and request `status`, `fix`, and
 `pages` in each. Confirm each receives only their own report. In a group chat,
 have the second participant request the first participant's group report.
 This live messaging test is distinct from automated host-contract tests.
+
+## Outbound attachments
+
+The pinned `reply_payload_sending` hook runs after MEDIA parsing and before
+channel delivery (`src/auto-reply/reply/reply-payload-sending-hook.ts`). The RO
+plugin now cancels guest attachments unless their real paths belong to this
+conversation and match a generated report/card/fix artifact. This also prevents
+plain assistant MEDIA output from bypassing the generic-tool restriction.
+Unknown scopes and remote attachment URLs fail closed. Ordinary text is kept.
+Owner exemptions are bound to the exact host run ID and session key recorded by
+`inbound_claim` or `before_tool_call`, never inferred from model arguments or a
+previous turn. Bindings are bounded in memory; missing bindings fail closed.
+
+`tests/media-policy.test.ts` verifies allowed report/fix attachments, file URLs,
+cross-chat paths, known workspace filenames, missing context, remote URLs, and
+that owner authority does not transfer to another run or conversation.
