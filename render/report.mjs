@@ -11,7 +11,7 @@ import { launch } from "./cdp.mjs";
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const src = file => pathToFileURL(file).href;
 const tone = score => score >= 90 ? "#16a34a" : score >= 70 ? "#d97706" : "#dc2626";
-const AREA = { screens: "On screen", seo: "Google", aeo: "AI readability" };
+const AREA = { screens: "On screen", seo: "Google", aeo: "AI readability", performance: "Mobile performance (lab)" };
 
 // Text pages (issues, fix list) flow onto a second sheet when they're long;
 // picture pages are one sheet each.
@@ -50,7 +50,7 @@ const detail = i => i.screens?.length ? `${i.title} · ${i.screens.length === 9 
 
 /** The issue list grouped by area, or a line saying there's nothing. */
 function issueRows(issues) {
-  return ["screens", "seo", "aeo"].map(area => {
+  return ["screens", "seo", "aeo", "performance"].map(area => {
     const rows = issues.filter(i => (i.area ?? "screens") === area);
     if (!rows.length) return "";
     return `<h3>${AREA[area]}</h3>` + rows.map(i =>
@@ -63,12 +63,25 @@ const tiles = screens => screens.map((s, i) => `<figure><figcaption><b>${i + 1}.
       <span class="pill" style="background:${tone(s.score)}">${s.score}</span></figcaption>
       <div class="shot"><img src="${src(s.thumbJpeg ?? s.foldJpeg)}"></div></figure>`).join("");
 
+export function performanceHtml(result) {
+  if (!result) return "";
+  if (result.status !== "ok") return `<div class="page flow"><h2>Mobile performance</h2><p>${esc(result.reason)}</p><p>No performance score was assigned.</p></div>`;
+  return `<div class="page flow"><h2>Mobile performance: ${result.score}/100</h2><p>${esc(result.note)}</p><div class="muted">Google PageSpeed Insights · ${esc(result.checkedAt ?? "time unavailable")}</div><table>${result.metrics.map(m => `<tr><td>${esc(m.label)}</td><td>${esc(m.value)} ${esc(m.unit)}</td></tr>`).join("")}</table>${result.warnings.map(w => `<p class="muted">${esc(w)}</p>`).join("")}</div>`;
+}
+
+export function comparisonHtml(comparison) {
+  if (!comparison?.screens?.length) return "";
+  return comparison.screens.map(s => `<div class="page flow"><h2>Before and after: ${esc(s.label)}</h2>
+    <p class="muted">${s.width} x ${s.height} - Earlier check: ${esc(comparison.since ?? "date unavailable")}. Screenshots show appearance; measured findings establish fixes.</p>
+    <div class="pair" style="margin-top:18px;align-items:flex-start"><figure style="width:48%"><figcaption>Before - layout score ${esc(s.beforeScore)}</figcaption><img style="width:100%;max-height:560px;object-fit:contain" src="${src(s.before)}"></figure><figure style="width:48%"><figcaption>Now - layout score ${esc(s.afterScore)}</figcaption><img style="width:100%;max-height:560px;object-fit:contain" src="${src(s.after)}"></figure></div>
+    <div class="facts">Fixed: ${esc(comparison.changes.fixed.join("; ") || "none measured")}<br>Still present: ${esc(comparison.changes.stillThere.join("; ") || "none measured")}<br>New: ${esc(comparison.changes.new.join("; ") || "none measured")}</div></div>`).join("");
+}
 export function reportHtml(run, issues, dir) {
   const host = new URL(run.audit.finalUrl ?? run.url).hostname.replace(/^www\./, "");
   const shot = id => run.audit.screens.find(s => s.id === id);
   const crawlers = (run.seo?.crawlers ?? []).map(c => `<tr><td>${esc(c.name)}</td>
       <td class="${c.robotsAllowed ? "ok" : "bad"}">${c.robotsAllowed ? "allowed" : "blocked"}</td>
-      <td class="${c.firewall ? "bad" : "ok"}">${c.status === undefined ? "not tested" : c.firewall ? `turned away (${c.status})` : `served (${c.status})`}</td></tr>`).join("");
+      <td class="${c.firewall ? "bad" : "ok"}">${c.status === undefined ? "not tested" : !c.status ? "probe failed" : c.status >= 200 && c.status < 400 && !c.firewall ? `served (${c.status})` : `probe failed (${c.status})`}</td></tr>`).join("");
   const page = run.seo?.page ?? {};
   const phone = shot("iphone")?.slices ?? [];
   const laptop = shot("laptop")?.slices ?? [];
@@ -81,7 +94,7 @@ export function reportHtml(run, issues, dir) {
     <div class="page"><h2>The first screen on 9 screen sizes</h2><div class="grid">${tiles(run.audit.screens)}</div></div>
     <div class="page"><h2>How Google and AI see ${esc(host)}</h2>
       <div class="google"><img src="${src(join(dir, "google-preview.png"))}"></div>
-      <h3>AI crawlers</h3><table><tr><td><b>Crawler</b></td><td><b>robots.txt</b></td><td><b>Your server</b></td></tr>${crawlers}</table>
+      <h3>Crawler user-agent probes</h3><p class="muted">Requests from our server, not verified crawler visits. Access does not establish AI citations.</p><table><tr><td><b>Crawler</b></td><td><b>robots.txt</b></td><td><b>Your server</b></td></tr>${crawlers}</table>
       <div class="facts">
         Text readable without JavaScript: <b>${run.seo?.noJs?.share ?? "?"}%</b><br>
         Structured data: <b>${page.structuredData?.length ? esc(page.structuredData.join(", ")) : "none"}</b><br>
@@ -89,6 +102,8 @@ export function reportHtml(run, issues, dir) {
         Title: <b>${esc(page.title ?? "none")}</b><br>
         Description: <b>${esc(page.description ?? "none")}</b>
       </div></div>
+    ${performanceHtml(run.seo?.performance)}
+    ${comparisonHtml(run.comparison)}
     ${phonePages.map((pair, k) => `<div class="page"><h2>The whole page on an iPhone 15${phonePages.length > 1 ? ` (${k + 1} of ${phonePages.length})` : ""}</h2>
       <div class="pair">${pair.map(f => `<img src="${src(f)}">`).join("")}</div></div>`).join("")}
     ${laptop.map((f, k) => `<div class="page"><h2>The whole page on a laptop${laptop.length > 1 ? ` (${k + 1} of ${laptop.length})` : ""}</h2>
@@ -111,6 +126,7 @@ export function pagesReportHtml(pr, dir) {
       ${issueRows(p.issues ?? [])}${preview}
       <div class="facts">Title: <b>${esc(page.title ?? "none")}</b><br>Description: <b>${esc(page.description ?? "none")}</b><br>
         Text readable without JavaScript: <b>${p.seo?.noJs?.share ?? "?"}%</b></div></div>
+    ${performanceHtml(p.seo?.performance)}
     <div class="page"><h2>${esc(title)}: the first screen on 9 screen sizes</h2><div class="grid">${tiles(p.audit.screens)}</div></div>`;
   }).join("");
   return themePdf(`<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body>

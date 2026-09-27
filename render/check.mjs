@@ -13,6 +13,7 @@ import { agentSummary, allIssues, diffRuns, fixPrompt, issueLines, recheckLines,
 import { imageRepairs } from "./repairs.mjs";
 import { mainPages, pageKey } from "./pages.mjs";
 import { renderCard } from "./card.mjs";
+import { comparisonScreens } from "./comparison.mjs";
 import { renderReport } from "./report.mjs";
 
 const [, , url, runDir, previousDir, reportNumber] = process.argv;
@@ -33,7 +34,7 @@ const run = { url, date: new Date().toISOString().slice(0, 10), audit: auditResu
 writeFileSync(join(runDir, "FIX-PROMPT.md"), fixPrompt(run));
 const issues = allIssues(run);
 const card = await renderCard(run, issues, runDir);
-const report = await renderReport(run, issues, runDir);
+
 
 // The earlier check of this page, if the plugin found one: the results text
 // then says what got fixed, what's still there and what's new.
@@ -49,11 +50,14 @@ if (previousDir) {
     changes = { since: earlier.audit.finishedAt?.slice(0, 10) ?? null, summary: recheckLines(run, earlier), fixed: d.fixed.map(i => i.short), stillThere: d.still.map(i => i.short), new: d.added.map(i => i.short) };
     message = recheckMessage(run, earlier);
     previous = previousDir;
+    run.comparison = { since: earlier.audit.finishedAt ?? null, changes, screens: comparisonScreens(earlier.audit, auditResult) };
   } catch (error) {
     console.error(`no comparison with the earlier check: ${error.message}`);
     previous = null;
   }
 }
+
+const report = await renderReport(run, issues, runDir);
 
 const summary = {
   kind: "page",

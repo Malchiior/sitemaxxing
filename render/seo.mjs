@@ -10,12 +10,13 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import { guardRequests, launch } from "./cdp.mjs";
+import { checkPerformance, performanceIssues } from "./performance.mjs";
 import { safeFetch } from "./guard.mjs";
 
 /** Crawlers people ask about, and the token each one matches in robots.txt. */
 export const CRAWLERS = [
   { name: "Google", token: "Googlebot", ua: "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)" },
-  { name: "ChatGPT", token: "GPTBot", ua: "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)" },
+  { name: "OpenAI training", token: "GPTBot", ua: "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)" },
   { name: "ChatGPT search", token: "OAI-SearchBot", ua: "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; OAI-SearchBot/1.0; +https://openai.com/searchbot)" },
   { name: "Claude", token: "ClaudeBot", ua: "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; ClaudeBot/1.0; +claudebot@anthropic.com)" },
   { name: "Perplexity", token: "PerplexityBot", ua: "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; PerplexityBot/1.0; +https://perplexity.ai/perplexitybot)" },
@@ -69,7 +70,7 @@ export function robotsAllows(robots, token) {
 
 const looksChallenged = body => /just a moment|cf-chl|captcha|access denied|attention required|are you a robot|verify you are human/i.test(body.slice(0, 20_000));
 
-const PAGE_FACTS = `(() => {
+export const PAGE_FACTS = `(() => {
   const meta = n => document.querySelector('meta[name="' + n + '"], meta[property="' + n + '"]')?.getAttribute("content") ?? null;
   const jsonLd = [...document.querySelectorAll('script[type="application/ld+json"]')].flatMap(s => {
     try { const d = JSON.parse(s.textContent); const items = Array.isArray(d) ? d : d["@graph"] ?? [d];
@@ -95,7 +96,7 @@ const PAGE_FACTS = `(() => {
     og: { title: meta("og:title"), description: meta("og:description"), image: meta("og:image") },
     twitterCard: meta("twitter:card"),
     structuredData: jsonLd,
-    images: imgs.length, missingAlt: imgs.filter(i => !(i.getAttribute("alt") || "").trim()).map(i => (i.currentSrc || i.src).split("/").pop().slice(0, 60)),
+    images: imgs.length, missingAlt: imgs.filter(i => !i.hasAttribute("alt") && !["presentation", "none"].includes(i.getAttribute("role"))).map(i => (i.currentSrc || i.src).split("/").pop().slice(0, 60)),
     favicon: document.querySelector('link[rel~="icon"]')?.href ?? null,
     internalLinks: new Set(links.filter(u => u.hostname === host).map(u => u.pathname)).size,
     navLinks,
@@ -147,18 +148,18 @@ export function seoIssues(r) {
   if (/noindex/i.test(f.robotsMeta ?? "")) add("high", "seo", "noindex", "The page tells search engines not to index it", f.robotsMeta);
   if (!r.crawlers.find(c => c.name === "Google").robotsAllowed) add("high", "seo", "google-blocked", "robots.txt blocks Google", null);
   if (!f.title) add("high", "seo", "no-title", "The page has no title", null);
-  else if (r.preview.titleCut) add("low", "seo", "title-cut", `Google cuts the title off (${f.title.length} characters)`, f.title);
+  else if (r.preview.titleCut) add("low", "seo", "title-cut", `The simulated Google preview cuts the title off (${f.title.length} characters)`, f.title);
   if (!f.description) add("medium", "seo", "no-description", "No meta description, so Google picks its own snippet", null);
-  else if (r.preview.descCut) add("low", "seo", "description-cut", `Google cuts the description off (${f.description.length} characters)`, f.description);
+  else if (r.preview.descCut) add("low", "seo", "description-cut", `The simulated Google preview cuts the description off (${f.description.length} characters)`, f.description);
   if (!f.h1.length) add("medium", "seo", "no-h1", "No H1 headline on the page", null);
   else if (f.h1.length > 1) add("low", "seo", "many-h1", `${f.h1.length} H1 headlines; one is clearer`, f.h1);
-  if (f.images && f.missingAlt.length / f.images > 0.2) add("medium", "seo", "alt-text", `${f.missingAlt.length} of ${f.images} images have no alt text`, f.missingAlt.slice(0, 5));
+  if (f.images && f.missingAlt.length / f.images > 0.2) add("medium", "seo", "alt-text", `${f.missingAlt.length} of ${f.images} images lack an alt attribute`, f.missingAlt.slice(0, 5));
   if (!f.og.image) add("low", "seo", "no-share-image", "No share image, so links posted on social show no picture", null);
   if (!f.canonical) add("low", "seo", "no-canonical", "No canonical link", null);
   if (!r.sitemap.found) add("low", "seo", "no-sitemap", "No sitemap found", null);
   const blockedByRobots = r.crawlers.filter(c => c.name !== "Google" && !c.robotsAllowed).map(c => c.name);
   const firewalled = r.crawlers.filter(c => c.firewall).map(c => `${c.name} (${c.status})`);
-  if (firewalled.length) add("high", "aeo", "firewall", `Your server or firewall turns away ${firewalled.join(", ")}`, firewalled);
+  if (firewalled.length) add("high", "aeo", "firewall", `Crawler user-agent probes failed: ${firewalled.join(", ")}`, firewalled);
   if (f.renderedText < 300) add("high", "aeo", "thin", `${what} has only ${f.renderedText} characters of text, so Google and AI tools have almost nothing to read`, f.h1);
   else if (r.noJs.share < 50) add("high", "aeo", "js-only", `AI crawlers that don't run JavaScript see only ${r.noJs.share}% of your text`, r.noJs);
   if (blockedByRobots.length) add("medium", "aeo", "ai-blocked", `robots.txt blocks ${blockedByRobots.join(", ")} (fine if that's on purpose)`, blockedByRobots);
@@ -179,7 +180,8 @@ export function seoIssues(r) {
 export async function seo(url, outDir, site = null) {
   mkdirSync(outDir, { recursive: true });
   const origin = new URL(url).origin;
-  const r = { url, scope: site ? "page" : "site" };
+  const r = { url, scope: site ? "page" : "site", crawlerNote: "User-agent probes from our server, not verified crawler visits or AI citation tests." };
+  const performance = checkPerformance(url);
 
   // A normal visit, then the same page as each crawler, a second apart.
   const home = await get(url);
@@ -249,7 +251,8 @@ export async function seo(url, outDir, site = null) {
   } finally {
     browser.close();
   }
-  r.issues = seoIssues(r);
+  r.performance = await performance;
+  r.issues = [...seoIssues(r), ...performanceIssues(r.performance)];
   writeFileSync(join(outDir, "seo.json"), JSON.stringify(r, null, 2));
   return r;
 }

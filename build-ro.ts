@@ -15,6 +15,6 @@ await mkdir("/opt/ro/plugins/ro/dist", { recursive: true });
 // The address rules, the same file the renderer uses, beside the plugin so
 // OpenClaw's loader finds it.
 await writeFile("/opt/ro/plugins/ro/dist/guard.js", await readFile("/opt/ro/render/guard.mjs", "utf8"));
-for (const name of ["index", "url-guard", "plow-api", "runs", "replies", "report-link"]) {
+for (const name of ["index", "url-guard", "plow-api", "runs", "replies", "report-link", "scope", "access", "media-policy"]) {
   await writeFile(`/opt/ro/plugins/ro/dist/${name}.js`, strip(await readFile(`/opt/ro/plugins/ro/${name}.ts`, "utf8")));
 }

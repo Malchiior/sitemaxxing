@@ -11,3 +11,10 @@ dev
 __pycache__
 .scratch/spruce/plow-credentials
 .scratch/**/plow-credentials
+
+# Marketing production files are not part of the texting agent.
+assets/agent-index
+render/janitor-*.mjs
+render/teaser*.mjs
+render/walkthrough*.mjs
+render/promo.mjs

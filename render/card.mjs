@@ -41,10 +41,10 @@ export function cardHtml(run, issues) {
     `<li><i class="dot ${i.severity}"></i><span>${esc(i.short)}</span></li>`).join("") || `<li><i class="dot ok"></i><span>Nothing broken on any screen</span></li>`;
   const page = run.seo?.page ?? {};
   const crawler = name => run.seo?.crawlers?.find(c => c.name === name);
-  const aiOk = ["ChatGPT", "Claude", "Perplexity"].map(name => {
+  const aiOk = ["ChatGPT search", "Claude", "Perplexity"].map(name => {
     const c = crawler(name);
-    const ok = c && c.robotsAllowed && !c.firewall;
-    return `<span class="${ok ? "yes" : "no"}">${ok ? "✓" : "✗"} ${name}</span>`;
+    const ok = c && c.robotsAllowed && !c.firewall && c.status >= 200 && c.status < 400;
+    return `<span class="${ok ? "yes" : "no"}">${ok ? "✓" : "✗"} ${name} probe</span>`;
   }).join("");
   const readable = run.seo?.noJs ? `${run.seo.noJs.share}% readable without JavaScript` : "";
   const schema = page.structuredData?.length ? "structured data ✓" : "no structured data";
