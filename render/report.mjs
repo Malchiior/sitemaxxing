@@ -108,7 +108,7 @@ export function reportHtml(run, issues, dir) {
       <div class="pair">${pair.map(f => `<img src="${src(f)}">`).join("")}</div></div>`).join("")}
     ${laptop.map((f, k) => `<div class="page"><h2>The whole page on a laptop${laptop.length > 1 ? ` (${k + 1} of ${laptop.length})` : ""}</h2>
       <div class="full"><img src="${src(f)}"></div></div>`).join("")}
-    <div class="page flow"><h2>Fix list for your coding agent</h2><pre>${esc(fix)}</pre></div>
+    <div class="page flow"><h2>Fix list for your coding agent</h2><pre>${esc(fix)}</pre><p>Want a fresh look? Reply <b>redesign</b> for a design brief, image prompts, and instructions for your coding agent. Design suggestions only; no images are generated.</p></div>
   </body></html>`);
 }
 
@@ -132,7 +132,7 @@ export function pagesReportHtml(pr, dir) {
   return themePdf(`<!doctype html><html><head><meta charset="utf-8"><style>${CSS}</style></head><body>
     <div class="page cover"><img src="${src(join(dir, "card.jpg"))}"></div>
     ${pages}
-    <div class="page flow"><h2>Fix list for your coding agent, ${pr.pages.filter(p => p.audit).length} pages</h2><pre>${esc(fix)}</pre></div>
+    <div class="page flow"><h2>Fix list for your coding agent, ${pr.pages.filter(p => p.audit).length} pages</h2><pre>${esc(fix)}</pre><p>Want a fresh look? Reply <b>redesign</b> for a design brief, image prompts, and instructions for your coding agent. Design suggestions only; no images are generated.</p></div>
   </body></html>`);
 }
 

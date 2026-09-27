@@ -244,3 +244,7 @@ Legacy unscoped reports are not reused automatically. See
 Recheck PDFs include paired before/after captures at matching screen sizes,
 alongside measured fixed/still/new findings. A visual change alone is not labeled
 a verified repair. Missing older captures are skipped.
+
+### Optional redesign prompts
+
+After a check, text `redesign` (or 🎨) for a `REDESIGN-PROMPT.md` attachment: a proposed design direction, optional asset prompts with export sizes and placement, and a coding-agent implementation brief. It uses the latest audit in the same conversation. Suggestions are separate from measured findings. This command makes no external generation calls and requires no v0 or image-provider key; users choose whether to generate assets with their own tools and credits. The PDF also mentions the command.

@@ -23,7 +23,7 @@ export function createMediaPolicy(workspace: string) {
       const dir = dirname(file);
       if (!ownsRun(scope, dir)) return false;
       const summary = JSON.parse(readFileSync(join(dir, "summary.json"), "utf8"));
-      return [summary.report, summary.card, summary.images?.card, summary.images?.grid, summary.images?.google, summary.fixPrompt, join(dir, "FIX-PROMPT.md")]
+      return [summary.report, summary.card, summary.images?.card, summary.images?.grid, summary.images?.google, summary.fixPrompt, join(dir, "FIX-PROMPT.md"), join(dir, "REDESIGN-PROMPT.md")]
         .filter(x => typeof x === "string")
         .some(x => { try { return realpathSync(x) === file; } catch { return false; } });
     } catch { return false; }

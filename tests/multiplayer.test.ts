@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { registerHooks } from "node:module";
@@ -40,6 +40,11 @@ test("two conversations retain independent status, fixes, pages and recheck hist
     assert.match(status.content[0].text, new RegExp(`${id}.example`));
     const fix = await t.ro_fix_prompt.execute();
     assert.equal(fix.details.file, join(own.dir, "FIX-PROMPT.md"));
+    const redesign = await t.ro_redesign.execute();
+    assert.equal(redesign.details.file, join(own.dir, "REDESIGN-PROMPT.md"));
+    const brief = readFileSync(redesign.details.file, "utf8");
+    assert.ok(brief.includes(`${id}.example`));
+    assert.ok(!brief.includes(`${id === "alice" ? "bob" : "alice"}.example`));
     const pages = await t.ro_check_pages.execute();
     assert.match(pages.content[0].text, new RegExp(`${id}.example`));
     assert.deepEqual(earlierRuns(own.scope.runs, `https://${id}.example/`), [own.dir]);
@@ -53,7 +58,7 @@ test("unknown context and reset sessions never fall back to the shared legacy re
   for (const ctx of [{}, { sessionKey: "x" }, { sessionId: "x" }]) {
     assert.equal(conversationPaths(workspace, ctx), null);
     const t = tools(ctx);
-    for (const name of ["ro_check", "ro_check_pages", "ro_fix_prompt", "ro_status"]) {
+    for (const name of ["ro_check", "ro_check_pages", "ro_fix_prompt", "ro_redesign", "ro_status"]) {
       assert.equal((await t[name].execute("id", { url: "https://example.com" })).isError, true);
     }
   }
@@ -81,7 +86,7 @@ test("guest tools cannot bypass scoped reports through files, shell, memory, del
     for (const toolName of forbidden) {
       assert.equal((await before({ toolName }, { requester })).block, true, toolName);
     }
-    for (const toolName of ["ro_check", "ro_check_pages", "ro_status", "ro_fix_prompt", "ro_greeting", "ro_commands"]) {
+    for (const toolName of ["ro_check", "ro_check_pages", "ro_status", "ro_fix_prompt", "ro_greeting", "ro_commands", "ro_redesign"]) {
       assert.equal(await before({ toolName }, { requester }), undefined, toolName);
     }
   }

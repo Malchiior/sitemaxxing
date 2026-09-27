@@ -2,7 +2,7 @@
 // measured-audit tools; arbitrary filesystem, shell, messaging, memory, browser,
 // delegation and automation tools would bypass conversation-scoped reports.
 const GUEST_TOOLS = new Set([
-  "ro_check", "ro_check_pages", "ro_commands", "ro_greeting", "ro_fix_prompt", "ro_status",
+  "ro_redesign", "ro_check", "ro_check_pages", "ro_commands", "ro_greeting", "ro_fix_prompt", "ro_status",
 ]);
 export function toolAccess(toolName: string, requester?: { senderId?: string; senderIsOwner?: boolean }) {
   const owner = Boolean(requester?.senderId) && requester?.senderIsOwner === true;

@@ -21,6 +21,7 @@ import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { checkableUrl, UrlRefused } from "./url-guard.ts";
 import { ownerChatUid, sendFile, sendText } from "./plow-api.ts";
 import { earlierRuns } from "./runs.ts";
+import { redesignPrompt } from "./redesign.ts";
 import { COMMANDS, fixReply, greeting } from "./replies.ts";
 import { publishReport, withReportLink } from "./report-link.ts";
 
@@ -234,6 +235,29 @@ export default definePluginEntry({
       },
       };
     }, { name: "ro_fix_prompt" });
+
+    api.registerTool((ctx) => {
+      mediaPolicy.bind(ctx);
+      const scope = conversationPaths(WORKSPACE, ctx);
+      return {
+        name: "ro_redesign", label: "Text-only redesign and asset prompts",
+        description: "When the person texts redesign or asks for design/asset prompts, return a text-only design brief from this conversation's latest audit. Suggestions are separate from measured findings. No image generation, external provider, or paid credits.",
+        parameters: { type: "object", additionalProperties: false, properties: {} },
+        async execute() {
+          if (!scope) return fail("Cannot identify this conversation safely.");
+          const dir = latestRun(scope);
+          if (!dir) return fail("Text me a website address first, then reply redesign.");
+          try {
+            const summary = readSummary(dir);
+            const file = join(dir, "REDESIGN-PROMPT.md");
+            writeFileSync(file, redesignPrompt(summary));
+            return ok(`Send exactly this line, then the MEDIA attachment; do not paste the brief into the text:\nDesign brief and asset prompts for ${hostOf(summary.site)} attached. These are suggestions, not measured findings. Use them with your own tools; no images were generated.\nMEDIA:${file}`, { file });
+          } catch {
+            return fail("That report is unavailable. Text me the website again, then reply redesign.");
+          }
+        },
+      };
+    }, { name: "ro_redesign" });
 
     api.registerTool((ctx) => {
       mediaPolicy.bind(ctx);
