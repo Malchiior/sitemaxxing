@@ -37,7 +37,8 @@ Nothing to connect. Nothing to install. No accounts, no keys. One text.
 7. **Your other pages.** Reply "pages". It takes up to four pages from your site's menu (same domain, normal web ports, no files or account, legal or archive pages), checks each on the nine screens, and sends one card with a row per page, one PDF with each page's findings and screens, and one fix list for every page. Site-wide findings (robots.txt, crawlers, sitemap, llms.txt) are reported once, with the page you checked first. A page behind a login or a bot check, one that redirects off the site or to a page already checked, or one that doesn't load is named as skipped, with the reason.
 8. **The fix.** Reply "fix". It sends a prompt written for your coding agent: every issue, where it appears, what to change, ordered fix-first (page by page after a pages check). It arrives as text to paste and as a file. The prompt is assembled by code from the measurements, so it can only say what was measured.
 9. **Straight to your agent.** If your coding agent has a Plow number, reply "send to my agent +1 555…" and it opens a thread with that agent and sends the fix prompt there. Owner only.
-10. **Again, after you deploy.** Text the address again. It finds its last check of that page and the results say what changed: scores then and now, what got fixed, what's still there, what's new. Broken images are compared one by one, so fixing one of two counts.
+10. **Onto your Mac.** If [Plow Latch](https://plow.co/latch) is on your Mac, reply "send to my mac" and the fix list lands in `~/Plow/sitemaxxing/<site>-fix.md`, where Latch approves writes automatically. Then tell Claude Code, Codex or Cursor to apply it. Owner only, and optional: without a Mac the reply says how to connect one.
+11. **Again, after you deploy.** Text the address again. It finds its last check of that page and the results say what changed: scores then and now, what got fixed, what's still there, what's new. Broken images are compared one by one, so fixing one of two counts.
 
 ## A real run, start to finish
 
@@ -111,6 +112,7 @@ The logo finding is a real one: its URL has `https://sbeoc.com/` pasted into the
 | Fix prompt assembled from measurements, not written by a model | `render/summarize.mjs` `fixPrompt`, `FIX` table; `render/pages.mjs` `pagesFixPrompt` |
 | Fix prompt delivered word for word, as text and as a file, ending with the re-check invitation | `plugins/ro/replies.ts` `fixReply`, `ro_fix_prompt` |
 | "send to my agent" is owner-only | `plugins/ro` before-tool-call hook, owner recognised by the host |
+| "send to my mac": the fix list written to `~/Plow/sitemaxxing/` through Plow Latch's local bridge, in code, owner-only, optional | `plugins/ro/latch.ts` `writeToMac`; `ro_send_to_mac` |
 | Read-only, polite: one page load per screen, a few GETs, no forms, no clicks | `render/audit.mjs`, `render/seo.mjs` |
 | A check stopped for taking too long takes its browser down with it | `render/cdp.mjs` SIGTERM handler |
 
@@ -125,6 +127,7 @@ Tests: `tests/` (URL guard, texts, pages, re-check, fix reply, contact card), ru
 ✅ "pages": up to four more pages from your menu, one card and one PDF for all of them
 ✅ A fix prompt for your own coding agent, ordered fix-first, as text and as a file
 ✅ "send to my agent": the prompt texted straight to your coding agent's Plow number
+✅ "send to my mac": the fix list saved in ~/Plow/sitemaxxing on your Mac through Plow Latch (optional)
 ✅ Verified image repairs when a broken image can be proven fixable
 ✅ Re-check after a deploy: what got fixed, what's still there, what's new
 
@@ -156,6 +159,7 @@ Tests: `tests/` (URL guard, texts, pages, re-check, fix reply, contact card), ru
 | `pages` | Up to four more pages from the site's menu, on the same 9 screens. About a minute per page. |
 | `fix` | The fix prompt for your coding agent, for the last check, as text and as a file |
 | `send to my agent +1 555 000 0000` | Texts the fix prompt to your coding agent's Plow number (owner only) |
+| `send to my mac` | Saves the fix list in `~/Plow/sitemaxxing/` on your Mac through Plow Latch (owner only, optional) |
 | the same URL again | Re-check after a deploy: fixed, still there, new |
 | `status` | The last check's results |
 
@@ -186,7 +190,7 @@ Not for: apps behind a login, flows that need clicks, or anyone wanting a rankin
 
 **Will it tell me if ChatGPT can see my site?** Yes: whether robots.txt allows GPTBot and OAI-SearchBot, and whether your server actually lets them in when they ask (some firewalls turn them away).
 
-**Can it fix the site itself?** No, on purpose. It writes the fix for the coding agent you already use, in your codebase, so nothing changes without you. If that agent has a Plow number, "send to my agent" texts the prompt straight to it.
+**Can it fix the site itself?** No, on purpose. It writes the fix for the coding agent you already use, in your codebase, so nothing changes without you. If that agent has a Plow number, "send to my agent" texts the prompt straight to it. If Plow Latch is on your Mac, "send to my mac" saves the list in ~/Plow/sitemaxxing for it.
 
 **Can it check my pricing page too?** Yes. Text that page's address, or reply "pages" after a check and it does up to four pages from your menu in one go.
 

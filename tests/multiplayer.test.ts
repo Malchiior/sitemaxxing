@@ -76,7 +76,7 @@ test("handoff requires explicit host-confirmed owner; unknown requester is block
 process.on("exit", () => rmSync(workspace, { recursive: true, force: true }));
 
 test("guest tools cannot bypass scoped reports through files, shell, memory, delegates or messages", async () => {
-  const forbidden = ["read", "write", "edit", "exec", "process", "apply_patch", "browser", "memory_search", "memory_get", "sessions_list", "sessions_history", "sessions_send", "sessions_spawn", "subagents", "cron", "message", "plow_start_thread", "ro_contact_card", "future_plugin_tool"];
+  const forbidden = ["read", "write", "edit", "exec", "process", "apply_patch", "browser", "memory_search", "memory_get", "sessions_list", "sessions_history", "sessions_send", "sessions_spawn", "subagents", "cron", "message", "plow_start_thread", "plow_write_file", "plow_run_command", "ro_send_to_mac", "ro_contact_card", "future_plugin_tool"];
   for (const requester of [undefined, { senderId: "guest", senderIsOwner: false }, { senderIsOwner: true }]) {
     for (const toolName of forbidden) {
       assert.equal((await before({ toolName }, { requester })).block, true, toolName);

@@ -6,17 +6,17 @@ import { COMMANDS, fixReply, greeting } from "../plugins/ro/replies.ts";
 test("the fix reply: one line ending with the re-check invitation, then the file, never the list", () => {
   const reply = fixReply("sbeoc.com", "/runs/1/FIX-PROMPT.md");
   assert.deepEqual(reply.split("\n"), [
-    `Fix list for sbeoc.com attached. Give it to your coding agent as is, or reply "send to my agent" with your agent's number. Text me the site again after you deploy and I'll show you what changed.`,
+    `Fix list for sbeoc.com attached. Give it to your coding agent as is, reply "send to my mac" to save it on your Mac (Plow Latch), or "send to my agent" with your agent's number. Text me the site again after you deploy and I'll show you what changed.`,
     "MEDIA:/runs/1/FIX-PROMPT.md",
   ]);
   assert.match(fixReply("sbeoc.com", "/x", 5), /^Fix list for sbeoc\.com, 5 pages attached/);
 });
 
 test("the commands text is short, plain and complete", () => {
-  for (const word of ["pages", "fix", "send to my agent", "status", "same URL again"]) assert.ok(COMMANDS.includes(word), word);
+  for (const word of ["pages", "fix", "send to my mac", "send to my agent", "status", "same URL again"]) assert.ok(COMMANDS.includes(word), word);
   assert.doesNotMatch(COMMANDS, /[*#]/);
-  for (const e of ["🔍", "📄", "🔁", "🛠️", "📤", "📊"]) assert.ok(COMMANDS.includes(e), e);
-  assert.equal(COMMANDS.split("\n\n").length, 7, "one block per action, blank lines between");
+  for (const e of ["🔍", "📄", "🔁", "🛠️", "💻", "📤", "📊"]) assert.ok(COMMANDS.includes(e), e);
+  assert.equal(COMMANDS.split("\n\n").length, 8, "one block per action, blank lines between");
 });
 
 test("the greeting uses the first name when there is one, and works without", () => {

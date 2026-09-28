@@ -3,7 +3,7 @@
 export function fixReply(host: string, file: string, pages = 0): string {
   const what = pages > 1 ? `${host}, ${pages} pages` : host;
   return [
-    `Fix list for ${what} attached. Give it to your coding agent as is, or reply "send to my agent" with your agent's number. Text me the site again after you deploy and I'll show you what changed.`,
+    `Fix list for ${what} attached. Give it to your coding agent as is, reply "send to my mac" to save it on your Mac (Plow Latch), or "send to my agent" with your agent's number. Text me the site again after you deploy and I'll show you what changed.`,
     `MEDIA:${file}`,
   ].join("\n");
 }
@@ -30,6 +30,9 @@ export const COMMANDS = [
   "",
   "🛠️ fix",
   "The fix list as a file, for your coding agent.",
+  "",
+  "💻 send to my mac",
+  "Saves the fix list in ~/Plow/sitemaxxing on your Mac, if Plow Latch is on it. Then tell your coding agent to apply it.",
   "",
   "📤 send to my agent +1 555 000 0000",
   "Texts the fix list to your coding agent's Plow number.",

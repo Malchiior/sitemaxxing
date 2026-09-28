@@ -8,8 +8,9 @@
 //   the results text says what changed, built in code.
 // - ro_fix_prompt returns the prompt render/summarize.mjs built from those
 //   measurements, word for word; the model doesn't write fixes.
-// - Only the owner can send results to another number (plow_start_thread),
-//   recognised by the host, not by name.
+// - Only the owner can send results to another number (plow_start_thread) or
+//   to their Mac (ro_send_to_mac, through Plow Latch), recognised by the host,
+//   not by name. The Mac is optional: without one the reply says so.
 import { createMediaPolicy } from "./media-policy.ts";
 import { toolAccess } from "./access.ts";
 import { randomUUID } from "node:crypto";
@@ -23,6 +24,7 @@ import { ownerChatUid, sendFile, sendText } from "./plow-api.ts";
 import { earlierRuns } from "./runs.ts";
 import { COMMANDS, fixReply, greeting } from "./replies.ts";
 import { publishReport, withReportLink } from "./report-link.ts";
+import { macReply, writeToMac } from "./latch.ts";
 
 const WORKSPACE = process.env.RO_WORKSPACE ?? "/var/lib/plow/workspace";
 const CARD = join(WORKSPACE, "ro", "contact.vcf");
@@ -234,6 +236,25 @@ export default definePluginEntry({
       },
       };
     }, { name: "ro_fix_prompt" });
+
+    api.registerTool((ctx) => {
+      mediaPolicy.bind(ctx);
+      const scope = conversationPaths(WORKSPACE, ctx);
+      return {
+      name: "ro_send_to_mac", label: "Save the fix list on the owner's Mac",
+      description: "Save the most recent check's fix list on the owner's Mac through Plow Latch, at ~/Plow/sitemaxxing/<site>-fix.md, where their coding agent can read it. Owner only. Optional: if no Mac is connected, the reply says how to connect one. Send the reply word for word.",
+      parameters: { type: "object", additionalProperties: false, properties: {} },
+      async execute() {
+        if (ctx.senderIsOwner !== true) return fail("Only the owner can send results to their Mac.");
+        if (!scope) return fail("Cannot identify this conversation safely.");
+        const dir = latestRun(scope);
+        if (!dir) return fail("Nothing to send yet. Text me a website address first.");
+        const host = hostOf(readSummary(dir).site);
+        const outcome = await writeToMac(host, readFileSync(join(dir, "FIX-PROMPT.md"), "utf8"));
+        return ok(macReply(host, outcome), { outcome });
+      },
+      };
+    }, { name: "ro_send_to_mac" });
 
     api.registerTool((ctx) => {
       mediaPolicy.bind(ctx);
