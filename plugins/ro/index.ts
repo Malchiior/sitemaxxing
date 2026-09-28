@@ -25,6 +25,7 @@ import { earlierRuns } from "./runs.ts";
 import { COMMANDS, fixReply, greeting } from "./replies.ts";
 import { publishReport, withReportLink } from "./report-link.ts";
 import { macReply, writeToMac } from "./latch.ts";
+import { openStudio } from "./studio.ts";
 
 const WORKSPACE = process.env.RO_WORKSPACE ?? "/var/lib/plow/workspace";
 const CARD = join(WORKSPACE, "ro", "contact.vcf");
@@ -126,6 +127,21 @@ export default definePluginEntry({
   name: "Sitemaxxing",
   description: "Checks a website on nine screens, for SEO and for AI readability, and builds a fix prompt from what it measured.",
   register(api) {
+    api.registerTool((ctx) => {
+      const scope = conversationPaths(WORKSPACE, ctx);
+      return {
+        name:"ro_studio", label:"Open a private design and package workspace",
+        description:"For REDESIGN, ASSETS or PACKAGE after a report. Opens a private workspace for the verified owner, using only this conversation's report. No images are generated and no keys are accepted in chat.",
+        parameters:{type:"object",required:["mode"],additionalProperties:false,properties:{mode:{type:"string",enum:["redesign","assets","package"]},direction:{type:"string",maxLength:2000,description:"Owner-selected project colors, visual style and avoided styles; collect before a new redesign/assets workspace."}}},
+        async execute(_id:string,args:{mode:"redesign"|"assets"|"package";direction?:string}){
+          if(ctx.senderIsOwner!==true)return fail("Only the verified owner can open the private design workspace.");
+          if(!scope)return fail("Cannot identify this conversation safely.");
+          const dir=latestRun(scope);if(!dir)return fail("Text me a website address for a measured report first, then reply redesign, assets or package.");
+          if(!["redesign","assets","package"].includes(args.mode))return fail("Choose redesign, assets or package.");
+          try{return ok(await openStudio(dir,args.mode,args.direction));}catch(error){return fail(error instanceof Error?error.message:"Couldn't open the workspace.");}
+        },
+      };
+    },{name:"ro_studio"});
     const mediaPolicy = createMediaPolicy(WORKSPACE);
     api.registerTool((ctx) => {
       mediaPolicy.bind(ctx);

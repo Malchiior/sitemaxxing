@@ -16,7 +16,8 @@ test("the commands text is short, plain and complete", () => {
   for (const word of ["pages", "fix", "send to my mac", "send to my agent", "status", "same URL again"]) assert.ok(COMMANDS.includes(word), word);
   assert.doesNotMatch(COMMANDS, /[*#]/);
   for (const e of ["🔍", "📄", "🔁", "🛠️", "💻", "📤", "📊"]) assert.ok(COMMANDS.includes(e), e);
-  assert.equal(COMMANDS.split("\n\n").length, 8, "one block per action, blank lines between");
+  assert.equal(COMMANDS.split("\n\n").length, 11, "one block per action, blank lines between");
+  for(const word of ["redesign","assets","package"])assert.ok(COMMANDS.includes(word));
 });
 
 test("the greeting uses the first name when there is one, and works without", () => {

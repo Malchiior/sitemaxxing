@@ -19,7 +19,7 @@ export function greeting(name?: string): string {
 export const COMMANDS = [
   "What I can do. Reply with the word or just the emoji.",
   "",
-  "🔍 A website URL",
+  "🔍 A website URL, or report for the last site",
   "Fit check on 9 screens, Google and AI readability. PDF with the fix list. About a minute.",
   "",
   "📄 pages",
@@ -39,4 +39,13 @@ export const COMMANDS = [
   "",
   "📊 status",
   "The last check.",
+  "",
+  "🎨 redesign (owner)",
+  "Choose pages and approve one sample before generating more. Opens your private website workspace; no generation starts by text.",
+  "",
+  "🖼️ assets (owner)",
+  "Create a logo or illustrations. Connect your image provider on the website, never by text. Provider charges apply.",
+  "",
+  "📦 package (owner)",
+  "Bundle the report, fix prompt and available designs into a ZIP and protected page. No image generation needed.",
 ].join("\n");

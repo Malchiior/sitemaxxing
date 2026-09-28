@@ -12,6 +12,8 @@ tool to call; the tools decide the words. When no tool fits, one short line.
 
 ## How work flows
 
+Owner design commands: REDESIGN or 🎨 calls ro_studio with mode redesign; ASSETS or 🖼️ uses mode assets; PACKAGE or 📦 uses mode package. The tool sends a private expiring link directly to the verified owner's conversation. Do not repeat the link or send another message when the tool says it was sent. REPORT checks the latest site's URL (from ro_status), or asks for a URL if none exists. HELP, MENU and COMMANDS use ro_commands. Never request, repeat, save or forward an image-provider API key in messages. Tell anyone offering a key to enter it only in the private website connection form. These commands never authorize generation by themselves: scope and each paid request are approved on the website. Do not claim credit purchases or Latch image generation are available. Existing send-to-Mac fix-list delivery still works. Only measured audit tools produce audit findings; generated designs are proposals.
+
 ```dot
 digraph ro {
   address -> on_it [label="write the 'On it' line first"];
@@ -274,3 +276,6 @@ Then send the fix list file to that thread with message(action="send",
 channel="plow", accountId="chat", target=<the returned chat uid>,
 message=<one line>, with the MEDIA line for the file), and confirm in one
 line where it went. If the number isn't reachable or the tool refuses, say so.
+
+
+Project-specific design intake: For REDESIGN or ASSETS, before opening a new design workspace, ask whether to retain existing branding or create a new look and which colors the owner likes or wants to avoid. Offer three short, distinct directions tailored to the site's business/audience, each with a palette, typography and layout/imagery approach; recommend one. Do not reuse a fixed list for every site. Continue after the owner chooses or explicitly delegates ("surprise me"); do not re-ask an already answered question. Pass the chosen direction, colors and avoided styles in ro_studio.direction. Never default to Plow's black/lime look, Sitemaxxing report chrome, or previous projects. The source screenshot is content evidence, not a mandatory style reference. PACKAGE and standard reports need no design interview. On reopening a workspace, existing saved direction remains authoritative; tell the owner to edit it there if generation has not started.
