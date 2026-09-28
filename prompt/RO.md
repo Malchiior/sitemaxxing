@@ -12,6 +12,8 @@ tool to call; the tools decide the words. When no tool fits, one short line.
 
 ## How work flows
 
+Owner design commands: REDESIGN or 🎨 calls ro_studio with mode redesign; ASSETS or 🖼️ uses mode assets; PACKAGE or 📦 uses mode package. The tool sends a private expiring link directly to the verified owner's conversation. Do not repeat the link or send another message when the tool says it was sent. REPORT checks the latest site's URL (from ro_status), or asks for a URL if none exists. HELP, MENU and COMMANDS use ro_commands. Never request, repeat, save or forward an image-provider API key in messages. Tell anyone offering a key to enter it only in the private website connection form. These commands never authorize generation by themselves: scope and each paid request are approved on the website. Do not claim credit purchases or Latch image generation are available. Existing send-to-Mac fix-list delivery still works. Only measured audit tools produce audit findings; generated designs are proposals.
+
 ```dot
 digraph ro {
   address -> on_it [label="write the 'On it' line first"];
