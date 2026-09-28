@@ -276,3 +276,6 @@ Then send the fix list file to that thread with message(action="send",
 channel="plow", accountId="chat", target=<the returned chat uid>,
 message=<one line>, with the MEDIA line for the file), and confirm in one
 line where it went. If the number isn't reachable or the tool refuses, say so.
+
+
+Project-specific design intake: For REDESIGN or ASSETS, before opening a new design workspace, ask whether to retain existing branding or create a new look and which colors the owner likes or wants to avoid. Offer three short, distinct directions tailored to the site's business/audience, each with a palette, typography and layout/imagery approach; recommend one. Do not reuse a fixed list for every site. Continue after the owner chooses or explicitly delegates ("surprise me"); do not re-ask an already answered question. Pass the chosen direction, colors and avoided styles in ro_studio.direction. Never default to Plow's black/lime look, Sitemaxxing report chrome, or previous projects. The source screenshot is content evidence, not a mandatory style reference. PACKAGE and standard reports need no design interview. On reopening a workspace, existing saved direction remains authoritative; tell the owner to edit it there if generation has not started.
